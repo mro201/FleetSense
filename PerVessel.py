@@ -53,10 +53,7 @@ def process_day(zip_path: Path):
     if df.is_empty():
         return
 
-    # Group by vessel and write each group
-    for mmsi, group_df in df.group_by("MMSI"):
-        if len(group_df) < MIN_ROWS_PER_VESSEL:
-            continue
+    for (mmsi,), group_df in df.group_by("MMSI"):  # unpack tuple key
         table = group_df.to_arrow()
         append_to_vessel_parquet(mmsi, table)
 
