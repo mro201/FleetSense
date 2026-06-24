@@ -1,12 +1,13 @@
+"""This script downloads daily AIS data from the specified URL for a given date range and saves it to the "data/raw" directory. The data is downloaded in ZIP format."""
+import os
+import time
 import urllib.request
 from datetime import date, timedelta
-import time
-import os
 
-os.makedirs('data/raw', exist_ok=True)
+os.makedirs("data/raw", exist_ok=True)
 
 start = date(2025, 6, 1)
-end   = date(2025, 8, 31)
+end = date(2025, 8, 31)
 
 d = start
 while d <= end:
