@@ -1,11 +1,13 @@
-import polars as pl
-import zipfile
+"""Reads zip files of daily AIS data, filters for relevant ship types, and writes per-vessel per day parquet files."""
 import io
-from pathlib import Path
-import pyarrow.parquet as pq
-import pyarrow as pa
-import tempfile
 import os
+import tempfile
+import zipfile
+from pathlib import Path
+
+import polars as pl
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 # --- Config ---
 ZIP_DIR = Path("data/raw")
@@ -13,7 +15,6 @@ OUT_DIR = Path("data/per_vessel")
 OUT_DIR.mkdir(exist_ok=True)
 
 RELEVANT_SHIP_TYPES = ["Cargo", "Tanker", "Fishing", "Tug", "Passenger"]
-MIN_ROWS_PER_VESSEL = 60 * 24
 
 
 def read_zip_csv(zip_path: Path) -> pl.LazyFrame:
@@ -30,6 +31,20 @@ def read_zip_csv(zip_path: Path) -> pl.LazyFrame:
 
 def filter_vessels(lf: pl.LazyFrame) -> pl.LazyFrame:
     return lf.filter(pl.col("Ship type").is_in(RELEVANT_SHIP_TYPES))
+
+
+def merge_vessel_files():
+    # Find all unique MMSIs
+    mmsi_set = set(p.stem.split("_")[0] for p in OUT_DIR.glob("*.parquet"))
+
+    for mmsi in mmsi_set:
+        files = sorted(OUT_DIR.glob(f"{mmsi}_*.parquet"))
+        # Read and combine one at a time to keep memory low
+        combined = pl.concat([pl.read_parquet(f) for f in files])
+        combined.write_parquet(OUT_DIR / f"{mmsi}.parquet", compression="snappy")
+        # Delete the daily files
+        for f in files:
+            f.unlink()
 
 
 def append_to_vessel_parquet(mmsi: int, table: pa.Table):
@@ -59,14 +74,15 @@ def process_day(zip_path: Path):
     if df.is_empty():
         return
 
-    for (mmsi,), group_df in df.group_by("MMSI"):  # unpack tuple key
-        table = group_df.to_arrow()
-        append_to_vessel_parquet(mmsi, table)
+    date_str = zip_path.stem.replace("aisdk-", "")  # e.g. "2025-06-01"
+    for (mmsi,), group_df in df.group_by("MMSI"):
+        out_path = OUT_DIR / f"{mmsi}_{date_str}.parquet"
+        group_df.write_parquet(out_path, compression="snappy")
 
 
 # --- Main loop ---
 zip_files = sorted(ZIP_DIR.glob("*.zip"))
-for zip_file in zip_files:  # Process from June 17th onward
+for zip_file in zip_files[2:]:
     process_day(zip_file)
 
 print(f"Done. Per-vessel parquet files written to {OUT_DIR}/")
