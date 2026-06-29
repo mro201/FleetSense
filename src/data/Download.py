@@ -1,19 +1,25 @@
 """This script downloads daily AIS data from the specified URL for a given date range and saves it to the "data/raw" directory. The data is downloaded in ZIP format."""
+
 import os
+import sys
 import time
 import urllib.request
 from datetime import date, timedelta
+from pathlib import Path
 
-os.makedirs("data/raw", exist_ok=True)
+sys.path.append(str(Path("..").resolve()))
+from config import DATA_RAW
 
-start = date(2025, 6, 1)
-end = date(2025, 8, 31)
+os.makedirs(DATA_RAW, exist_ok=True)
+
+start = date(2025, 12, 31)
+end = date(2026, 6, 30)
 
 d = start
 while d <= end:
     filename_date = d.strftime("%Y-%m-%d")
     url = f"http://aisdata.ais.dk/aisdk-{filename_date}.zip"
-    filename = f"data/raw/aisdk-{filename_date}.zip"
+    filename = f"{DATA_RAW}/aisdk-{filename_date}.zip"
     print(f"Downloading {url}...")
     try:
         urllib.request.urlretrieve(url, filename)
