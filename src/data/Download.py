@@ -1,4 +1,5 @@
-"""This script downloads daily AIS data from the specified URL for a given date range and saves it to the "data/raw" directory. The data is downloaded in ZIP format."""
+"""This script downloads daily AIS data from the specified URL for a given date range and saves it to the "data/raw"
+directory. The data is downloaded in ZIP format."""
 
 import os
 import sys

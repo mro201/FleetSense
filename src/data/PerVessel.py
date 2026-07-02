@@ -1,15 +1,11 @@
 """Reads zip files of daily AIS data, filters for relevant ship types, and writes per-vessel per day parquet files."""
 
 import io
-import os
 import sys
-import tempfile
 import zipfile
 from pathlib import Path
 
 import polars as pl
-import pyarrow as pa
-import pyarrow.parquet as pq
 
 sys.path.append(str(Path("..").resolve()))
 from config import DATA_RAW, DATA_VESSEL, SHIP_TYPES
@@ -66,8 +62,8 @@ def process_day(zip_path: Path):
 
 
 # --- Config ---
-START_DATE = "2025-12-25"  # set to None to process all
-END_DATE = "2025-12-31"
+START_DATE = "2026-06-10"  # set to None to process all
+END_DATE = "2026-06-26"
 
 # --- Main loop ---
 zip_files = sorted(ZIP_DIR.glob("*.zip"))

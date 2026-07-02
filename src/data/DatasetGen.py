@@ -5,7 +5,8 @@ important thing to take into account:
 - very variable number of pings per vessel, some vessels have very few pings, others have many thousands
 - unbalanced distribution of ship types, with some types being much more common than others
 - missing values in some features, especially draught and navigational status
-- number of pings per vessel can vary significantly over time, with some vessels having long periods of inactivity or lower reporting frequency
+- number of pings per vessel can vary significantly over time, with some vessels having long periods of inactivity or
+    lower reporting frequency
 
 Features generated include:
 - Identity: ship type
@@ -31,7 +32,6 @@ import random
 import sys
 from pathlib import Path
 
-import numpy as np
 import polars as pl
 
 sys.path.append(str(Path("..").resolve()))
@@ -89,25 +89,40 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
                 (((pl.col("Heading") - pl.col("COG") + 180) % 360 - 180).abs().mean()).alias("heading_cog_diff_mean"),
                 # ── Navigational status ───────────────────────────────────
                 pl.col("Navigational status").n_unique().alias("n_nav_statuses"),
-                ((pl.col("Navigational status") == "Engaged in fishing").sum() / pl.col(TIMESTAMP_COL).count()).alias("fishing_ratio"),
-                ((pl.col("Navigational status") == "At anchor").sum() / pl.col(TIMESTAMP_COL).count()).alias("anchor_ratio"),
-                ((pl.col("Navigational status") == "Under way using engine").sum() / pl.col(TIMESTAMP_COL).count()).alias("underway_engine_ratio"),
-                ((pl.col("Navigational status") == "Moored").sum() / pl.col(TIMESTAMP_COL).count()).alias("moored_ratio"),
+                ((pl.col("Navigational status") == "Engaged in fishing").sum() / pl.col(TIMESTAMP_COL).count()).alias(
+                    "fishing_ratio"
+                ),
+                ((pl.col("Navigational status") == "At anchor").sum() / pl.col(TIMESTAMP_COL).count()).alias(
+                    "anchor_ratio"
+                ),
+                (
+                    (pl.col("Navigational status") == "Under way using engine").sum() / pl.col(TIMESTAMP_COL).count()
+                ).alias("underway_engine_ratio"),
+                ((pl.col("Navigational status") == "Moored").sum() / pl.col(TIMESTAMP_COL).count()).alias(
+                    "moored_ratio"
+                ),
                 # ── Spatial range ─────────────────────────────────────────
                 pl.col("Latitude").std().alias("lat_std"),
                 pl.col("Longitude").std().alias("lon_std"),
                 pl.col("Latitude").mean().alias("lat_mean"),
                 pl.col("Longitude").mean().alias("lon_mean"),
-                ((pl.col("Latitude").max() - pl.col("Latitude").min()) * (pl.col("Longitude").max() - pl.col("Longitude").min())).alias("bbox_area"),
+                (
+                    (pl.col("Latitude").max() - pl.col("Latitude").min())
+                    * (pl.col("Longitude").max() - pl.col("Longitude").min())
+                ).alias("bbox_area"),
                 # ── cargo ───────────────────────────────────────
                 ((pl.col("Cargo type") == "Category X").sum() / pl.col(TIMESTAMP_COL).count()).alias("CargoX_ratio"),
                 ((pl.col("Cargo type") == "Category Y").sum() / pl.col(TIMESTAMP_COL).count()).alias("CargoY_ratio"),
                 ((pl.col("Cargo type") == "Category Z").sum() / pl.col(TIMESTAMP_COL).count()).alias("CargoZ_ratio"),
                 ((pl.col("Cargo type") == "Category OS").sum() / pl.col(TIMESTAMP_COL).count()).alias("CargoOS_ratio"),
-                ((pl.col("Cargo type") == "Reserved for future use").sum() / pl.col(TIMESTAMP_COL).count()).alias("CargoReserved_ratio"),
+                ((pl.col("Cargo type") == "Reserved for future use").sum() / pl.col(TIMESTAMP_COL).count()).alias(
+                    "CargoReserved_ratio"
+                ),
                 # ── Temporal ──────────────────────────────────────────────
                 pl.col(TIMESTAMP_COL).count().alias("n_pings"),
-                (pl.col(TIMESTAMP_COL).max() - pl.col(TIMESTAMP_COL).min()).dt.total_seconds().alias("time_span_seconds"),
+                (pl.col(TIMESTAMP_COL).max() - pl.col(TIMESTAMP_COL).min())
+                .dt.total_seconds()
+                .alias("time_span_seconds"),
             ]
         )
         # ── Derived features (post-aggregation) ───────────────────────
@@ -116,7 +131,9 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
                 (pl.col("length") / (pl.col("width") + 1e-6)).alias("length_beam_ratio"),
                 (pl.col("max_draught") / (pl.col("length") + 1e-6)).alias("draught_length_ratio"),
                 ((pl.col("sog_p90") - pl.col("sog_p10")) / (pl.col("std_speed") + 1e-6)).alias("sog_bimodality"),
-                (pl.col("time_span_seconds") / (pl.col("n_pings") - 1).clip(lower_bound=1)).alias("mean_ping_interval_seconds"),
+                (pl.col("time_span_seconds") / (pl.col("n_pings") - 1).clip(lower_bound=1)).alias(
+                    "mean_ping_interval_seconds"
+                ),
                 # group_by_dynamic index column is already Datetime — just rename it
                 pl.col(TIMESTAMP_COL).alias("week_start"),
             ]
