@@ -23,7 +23,7 @@ AIS data is well-suited for learning drift detection: vessel types have clear be
 Raw AIS data: Danish Maritime Authority, 2024.
 
 ## Data preprocessing
-Dansish maritime Authority AIS data is structured as logs aggregated day by day. each ship has varying frequency both between ships and days. to ke
+Dansish maritime Authority AIS data is structured as logs aggregated day by day. each ship has varying frequency both between ships and days.
 
 ### Download data from Danish maritime authority
     '''python download.py'''
@@ -33,4 +33,3 @@ Dansish maritime Authority AIS data is structured as logs aggregated day by day.
 
 ### Generate dataset
     '''python DatasetGen.py'''
-    
