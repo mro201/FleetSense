@@ -33,3 +33,40 @@ Dansish maritime Authority AIS data is structured as logs aggregated day by day.
 
 ### Generate dataset
     '''python DatasetGen.py'''
+
+## Installation
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't already have it:
+
+   \`\`\`powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   \`\`\`
+
+2. Clone the repository:
+
+   \`\`\`bash
+   git clone https://github.com/mro201/DriftAnalysis.git
+   cd DriftAnalysis
+   \`\`\`
+
+3. Install dependencies:
+
+   \`\`\`bash
+   uv sync
+   \`\`\`
+
+## Running the project
+
+Run commands inside the project's environment with `uv run`, no activation needed:
+
+\`\`\`bash
+uv run jupyter lab
+uv run ruff check .
+uv run mypy
+\`\`\`
+
+Alternatively, activate the virtual environment directly:
+
+\`\`\`powershell
+.venv\Scripts\activate
+\`\`\`
