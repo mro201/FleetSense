@@ -35,7 +35,7 @@ from pathlib import Path
 import polars as pl
 
 sys.path.append(str(Path("..").resolve()))
-from config import CLASS_COLUMN, DATA_DATASET, DATA_VESSEL, TIMESTAMP_FMT
+from config import DATA_DATASET, DATA_VESSEL, TIMESTAMP_FMT
 
 IN_DIR = DATA_VESSEL
 OUT_DIR = DATA_DATASET
@@ -61,7 +61,7 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
 
     # 3. Main weekly aggregation
     features = (
-        combined.group_by_dynamic(TIMESTAMP_COL, every="1w", group_by=CLASS_COLUMN)
+        combined.group_by_dynamic(TIMESTAMP_COL, every="1w")
         .agg(
             [
                 # ── Identity ──────────────────────────────────────────────
