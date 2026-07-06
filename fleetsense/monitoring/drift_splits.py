@@ -1,4 +1,3 @@
-# src/fleetsense/monitoring/drift_splits.py
 """
 Constructs deliberately biased train/test splits to induce known drift types,
 for studying how model performance degrades outside the training distribution.

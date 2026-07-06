@@ -1,5 +1,5 @@
 [project]
-name = "driftanalysis"
+name = "fleetsense"
 version = "0.1.0"
 description = ""
 authors = [
@@ -45,5 +45,5 @@ select = ["E", "F", "C90"]
 max-complexity = 10
 
 [tool.mypy]
-files = ["src/"]
+files = ["fleetsense/"]
 ignore_missing_imports = true
