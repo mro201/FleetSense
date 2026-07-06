@@ -30,7 +30,7 @@ churn prediction, or demand forecasting.
 
 ## Repository Structure
 
-\`\`\`
+```
 FleetSense/
 ├── fleetsense/              # main package
 │   ├── data/                # download + per-vessel aggregation
@@ -46,7 +46,7 @@ FleetSense/
 ├── pyproject.toml
 ├── uv.lock
 └── config.py
-\`\`\`
+```
 
 
 ## Dataset
@@ -81,7 +81,7 @@ and features like speed and stopping patterns are intuitively interpretable.
 
 Danish Maritime Authority AIS data is structured as daily logs; each vessel reports at a varying frequency both between vessels and across days. The pipeline processes this in three stages:
 
-​```bash
+```bash
 # 1. Download raw AIS data
 uv run python -m fleetsense.data.download
 
@@ -90,30 +90,30 @@ uv run python -m fleetsense.data.aggregate_per_vessel
 
 # 3. Generate the final per-vessel feature dataset
 uv run python -m fleetsense.features.generate_features
-​```
+```
 
 Or run the full pipeline in one step for a given time interval:
 
-​```bash
+```bash
 uv run scripts/generate_dataset.py --start 2024-06-01 --end 2024-07-31
-​```
+```
 
 ## Running the Project
 
 Run commands inside the project's environment with `uv run` — no activation needed:
 
-\`\`\`bash
+```bash
 uv run jupyter lab
 uv run ruff check .
 uv run mypy
 uv run pytest
-\`\`\`
+```
 
 Alternatively, activate the virtual environment directly:
 
-\`\`\`powershell
+```powershell
 .venv\Scripts\activate
-\`\`\`
+```
 
 ## Example Outputs
 
