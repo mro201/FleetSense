@@ -30,4 +30,4 @@ repos:
     rev: v2.14
     hooks:
       - id: vulture
-        args: [src/, --min-confidence=80]
+        args: [fleetsense/, --min-confidence=80]

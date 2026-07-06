@@ -1,4 +1,3 @@
-# src/fleetsense/models/baseline.py
 """
 Baseline Random Forest classifier for vessel type classification.
 

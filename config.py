@@ -1,4 +1,3 @@
-# src/config.py
 from pathlib import Path
 
 ROOT = Path(__file__).parent  # DriftAnalysis/
@@ -6,9 +5,6 @@ ROOT = Path(__file__).parent  # DriftAnalysis/
 DATA_RAW = ROOT / "data" / "raw"
 DATA_VESSEL = ROOT / "data" / "per_vessel"
 DATA_DATASET = ROOT / "data" / "dataset"
-OUTPUTS = ROOT / "outputs"
-MODELS_DIR = OUTPUTS / "models"
-FIGURES_DIR = OUTPUTS / "figures"
 
 SHIP_TYPES = ["Cargo", "Tanker", "Fishing", "Tug", "Passenger"]
 TIMESTAMP_FMT = "%d/%m/%Y %H:%M:%S"
