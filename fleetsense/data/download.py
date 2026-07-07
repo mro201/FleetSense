@@ -13,21 +13,26 @@ from config import DATA_RAW
 
 os.makedirs(DATA_RAW, exist_ok=True)
 
-start = date(2025, 12, 31)
-end = date(2026, 6, 30)
 
-d = start
-while d <= end:
-    filename_date = d.strftime("%Y-%m-%d")
-    url = f"http://aisdata.ais.dk/aisdk-{filename_date}.zip"
-    filename = f"{DATA_RAW}/aisdk-{filename_date}.zip"
-    print(f"Downloading {url}...")
-    try:
-        urllib.request.urlretrieve(url, filename)
-        print(f"  Saved: {filename}")
-    except urllib.error.HTTPError as e:
-        print(f"  Failed ({e.code}): {url}")
-    except Exception as e:
-        print(f"  Error: {e}")
-    time.sleep(1)
-    d += timedelta(days=1)
+def download_ais_data(start: date, end: date):
+    d = start
+    while d <= end:
+        filename_date = d.strftime("%Y-%m-%d")
+        url = f"http://aisdata.ais.dk/aisdk-{filename_date}.zip"
+        filename = f"{DATA_RAW}/aisdk-{filename_date}.zip"
+        print(f"Downloading {url}...")
+        try:
+            urllib.request.urlretrieve(url, filename)
+            print(f"  Saved: {filename}")
+        except urllib.error.HTTPError as e:
+            print(f"  Failed ({e.code}): {url}")
+        except Exception as e:
+            print(f"  Error: {e}")
+        time.sleep(1)
+        d += timedelta(days=1)
+
+
+if __name__ == "__main__":
+    start = date(2025, 12, 31)
+    end = date(2026, 6, 30)
+    download_ais_data(start, end)

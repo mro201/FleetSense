@@ -3,6 +3,7 @@
 import io
 import sys
 import zipfile
+from datetime import date
 from pathlib import Path
 
 import polars as pl
@@ -61,14 +62,24 @@ def process_day(zip_path: Path):
         group_df.write_parquet(out_path, compression="snappy")
 
 
-# --- Config ---
-START_DATE = "2026-06-10"  # set to None to process all
-END_DATE = "2026-06-26"
+def process_range(start_date: date, end_date: date):
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+    zip_files = sorted(ZIP_DIR.glob("*.zip"))
+    zip_files = [f for f in zip_files if start_str <= f.stem.replace("aisdk-", "") <= end_str]
 
-# --- Main loop ---
-zip_files = sorted(ZIP_DIR.glob("*.zip"))
-if START_DATE:
-    zip_files = [f for f in zip_files if START_DATE <= f.stem.replace("aisdk-", "") <= END_DATE]
+    for zip_file in zip_files:
+        process_day(zip_file)
 
-for zip_file in zip_files:
-    process_day(zip_file)
+
+if __name__ == "__main__":
+    START_DATE = date(2026, 6, 10)  # set to None to process all
+    END_DATE = date(2026, 6, 26)
+    zip_files = sorted(ZIP_DIR.glob("*.zip"))
+    if START_DATE:
+        start_str = START_DATE.strftime("%Y-%m-%d")
+        end_str = END_DATE.strftime("%Y-%m-%d")
+        zip_files = [f for f in zip_files if start_str <= f.stem.replace("aisdk-", "") <= end_str]
+
+    for zip_file in zip_files:
+        process_day(zip_file)
