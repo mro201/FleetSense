@@ -28,7 +28,6 @@ Filters to be added:
 - remove vessels with null or missing values in critical features (e.g., mean_moving_speed, max_draught).
 """
 
-import random
 import sys
 from pathlib import Path
 
@@ -143,37 +142,35 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
     return features
 
 
-# Batch processing
-
-imo_set = list(
-    set(
-        p.stem.split("_")[0]
-        for p in IN_DIR.glob("*.parquet")
-        if p.stem.split("_")[0].isdigit()  # <-- skip 'Unknown' and any other non-numeric
+def generate_dataset():
+    imo_set = list(
+        set(
+            p.stem.split("_")[0]
+            for p in IN_DIR.glob("*.parquet")
+            if p.stem.split("_")[0].isdigit()  # <-- skip 'Unknown' and any other non-numeric
+        )
     )
-)
-random.shuffle(imo_set)
-print(f"Computing features for {len(imo_set)} vessels...")
+    print(f"Computing features for {len(imo_set)} vessels...")
 
-out_path = OUT_DIR / "vessel_weekly_features.csv"
-first = True
+    out_path = OUT_DIR / "vessel_weekly_features.csv"
+    first = True
 
-for i, imo in enumerate(imo_set):
-    if i % 100 == 0:
-        print(f"  {i}/{len(imo_set)} vessels processed...")
+    for i, imo in enumerate(imo_set):
+        if i % 100 == 0:
+            print(f"  {i}/{len(imo_set)} vessels processed...")
 
-    features = compute_features_for_vessel(int(imo))
+        features = compute_features_for_vessel(int(imo))
 
-    features = features.filter((pl.col("n_pings") >= 100))
+        features = features.filter((pl.col("n_pings") >= 100))
 
-    if features.is_empty():
-        continue
+        if features.is_empty():
+            continue
 
-    if first:
-        features.write_csv(out_path)
-        first = False
-    else:
-        with open(out_path, "ab") as f:
-            features.write_csv(f, include_header=False)
+        if first:
+            features.write_csv(out_path)
+            first = False
+        else:
+            with open(out_path, "ab") as f:
+                features.write_csv(f, include_header=False)
 
-print(f"Done. Output written to {out_path}")
+    print(f"Done. Output written to {out_path}")
