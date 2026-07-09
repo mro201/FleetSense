@@ -1,7 +1,7 @@
 """Plotting functions for visualizing PSI-based drift monitoring output
 (the tables produced by monitor_all_features / monitor_class_balance).
 
-Two main views are provided:
+Three main views are provided:
 - A heatmap of PSI across features (rows) and periods (columns), one per class if
   class-level drift was computed — good for spotting which features/classes/periods
   are driving drift at a glance.
@@ -9,8 +9,10 @@ Two main views are provided:
   interpretation thresholds drawn in as reference lines, and one line per class
   if class-level drift was computed — good for a closer look once a heatmap has
   flagged something worth investigating.
+- A class balance plot (stacked area or line) showing how the proportion of each
+  class shifts over time — a separate question from feature drift within a class.
 
-A third helper ranks features by how much they've drifted, to help decide what's
+A fourth helper ranks features by how much they've drifted, to help decide what's
 worth a closer look in the first place.
 """
 
@@ -136,16 +138,6 @@ def plot_psi_timeseries(
     return fig
 
 
-def rank_features_by_drift(drift_df: pl.DataFrame, class_col: str | None = None) -> pl.DataFrame:
-    """Rank features by their maximum observed PSI across all periods (and classes,
-    if class_col is given), as a starting point for deciding what to plot in detail.
-
-    Returns a table sorted from most to least drifted.
-    """
-    group_cols = ["feature", class_col] if class_col else ["feature"]
-    return drift_df.group_by(group_cols).agg(pl.col("psi").max().alias("max_psi")).sort("max_psi", descending=True)
-
-
 def plot_class_balance(
     balance_df: pl.DataFrame,
     class_col: str,
@@ -195,3 +187,13 @@ def plot_class_balance(
     ax.set_xlabel("Period")
     fig.tight_layout()
     return fig
+
+
+def rank_features_by_drift(drift_df: pl.DataFrame, class_col: str | None = None) -> pl.DataFrame:
+    """Rank features by their maximum observed PSI across all periods (and classes,
+    if class_col is given), as a starting point for deciding what to plot in detail.
+
+    Returns a table sorted from most to least drifted.
+    """
+    group_cols = ["feature", class_col] if class_col else ["feature"]
+    return drift_df.group_by(group_cols).agg(pl.col("psi").max().alias("max_psi")).sort("max_psi", descending=True)
