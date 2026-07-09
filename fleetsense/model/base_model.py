@@ -7,10 +7,9 @@ evaluates the model identically. This ensures drift experiments are comparable
 to each other and to the baseline.
 """
 
-import polars as pl
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+
 
 # ── Design choices ────────────────────────────────────────────────────
 RANDOM_STATE = 42
@@ -55,14 +54,6 @@ FEATURE_COLUMNS = [
 TARGET_COLUMN = "ship_type"
 
 
-# ── Core functions ────────────────────────────────────────────────────
-def get_features_and_target(df: pl.DataFrame) -> tuple[pl.DataFrame, pl.Series]:
-    """Select the model's fixed feature set and target from a features DataFrame."""
-    X = df.select(FEATURE_COLUMNS)
-    y = df[TARGET_COLUMN]
-    return X, y
-
-
 def train_baseline(X_train, y_train) -> RandomForestClassifier:
     """Train the baseline Random Forest with fixed hyperparameters."""
     model = RandomForestClassifier(**MODEL_PARAMS)
@@ -79,8 +70,3 @@ def evaluate_model(model, X_test, y_test) -> dict:
         "confusion_matrix": confusion_matrix(y_test, y_pred),
         "report": classification_report(y_test, y_pred),
     }
-
-
-def train_test_split_default(X, y, test_size=0.2):
-    """Standard random split used for the i.i.d. baseline (not used for drift experiments)."""
-    return train_test_split(X, y, test_size=test_size, random_state=RANDOM_STATE, stratify=y)
