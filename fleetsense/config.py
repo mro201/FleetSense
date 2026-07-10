@@ -1,6 +1,6 @@
 from pathlib import Path
 
-ROOT = Path(__file__).parent  # DriftAnalysis/
+ROOT = Path(__file__).parent.parent  # DriftAnalysis/
 
 DATA_RAW = ROOT / "data" / "raw"
 DATA_VESSEL = ROOT / "data" / "per_vessel"

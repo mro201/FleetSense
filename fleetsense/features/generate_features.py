@@ -34,7 +34,7 @@ from pathlib import Path
 import polars as pl
 
 sys.path.append(str(Path("..").resolve()))
-from config import DATA_DATASET, DATA_VESSEL, TIMESTAMP_FMT
+from fleetsense.config import DATA_DATASET, DATA_VESSEL, TIMESTAMP_FMT
 
 IN_DIR = DATA_VESSEL
 OUT_DIR = DATA_DATASET

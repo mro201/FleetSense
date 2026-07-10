@@ -27,34 +27,6 @@ MODEL_PARAMS = {
     "n_jobs": -1,
 }
 
-FEATURE_COLUMNS = [
-    "mean_moving_speed",
-    "max_speed",
-    "std_speed",
-    "sog_p10",
-    "sog_median",
-    "sog_p90",
-    "frac_time_slow",
-    "frac_time_fast",
-    "cog_variability",
-    "rot_mean_abs",
-    "rot_std",
-    "heading_cog_diff_mean",
-    "n_nav_statuses",
-    "fishing_ratio",
-    "anchor_ratio",
-    "underway_engine_ratio",
-    "moored_ratio",
-    "lat_std",
-    "lon_std",
-    "bbox_area",
-    "length_beam_ratio",
-    "draught_length_ratio",
-    "sog_bimodality",
-    "mean_ping_interval_seconds",
-    # ... adjust to your actual final feature list
-]
-
 TARGET_COLUMN = "ship_type"
 
 

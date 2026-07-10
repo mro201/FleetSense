@@ -9,26 +9,38 @@ import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split
 
-from config import SHIP_TYPES, DATA_DATASET
+from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
 FEATURES = [
-    "sog_p10",
-    "sog_median",
-    "frac_time_slow",
-    "frac_time_fast",
-    "heading_cog_diff_mean",
-    "fishing_ratio",
-    "anchor_ratio",
-    "underway_engine_ratio",
-    "moored_ratio",
-    "length",
-    "width",
-    "max_draught",
-    "draught_variability",
     "length_beam_ratio",
     "draught_length_ratio",
-    "bbox_area",
+    "width",
+    "length",
+    "min_draught",
+    "max_draught",
+    "lat_mean",
+    "sog_p90",
+    "CargoY_ratio",
+    "lon_mean",
+    "max_speed",
+    "draught_variability",
+    "sog_median",
+    "fishing_ratio",
+    "CargoZ_ratio",
+    "anchor_ratio",
+    "moored_ratio",
+    "lon_std",
+    "time_span_seconds",
+    "rot_std",
+    "frac_time_slow",
+    "rot_mean_abs",
+    "CargoOS_ratio",
+    "n_pings",
+    "cog_variability",
     "mean_ping_interval_seconds",
+    "lat_std",
+    "mean_moving_speed",
+    "sog_p10",
 ]
 
 TARGET_COLUMN = "ship_type"

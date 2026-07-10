@@ -17,9 +17,11 @@ dependencies = [
     "seaborn>=0.13.2,<0.14.0",
     "pyarrow>=24.0.0,<25.0.0",
     "requests>=2.34.2,<3.0.0",
+    "fastapi>=0.139.0",
+    "uvicorn>=0.51.0",
 ]
 [tool.uv]
-package = false
+package = true
 
 [build-system]
 requires = ["hatchling"]
