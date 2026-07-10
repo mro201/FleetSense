@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.append(str(Path("..").resolve()))
-from config import DATA_RAW
+from fleetsense.config import DATA_RAW
 
 os.makedirs(DATA_RAW, exist_ok=True)
 

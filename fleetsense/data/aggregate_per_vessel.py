@@ -9,7 +9,7 @@ from pathlib import Path
 import polars as pl
 
 sys.path.append(str(Path("..").resolve()))
-from config import DATA_RAW, DATA_VESSEL, SHIP_TYPES
+from fleetsense.config import DATA_RAW, DATA_VESSEL, SHIP_TYPES
 
 # --- Config ---
 ZIP_DIR = DATA_RAW

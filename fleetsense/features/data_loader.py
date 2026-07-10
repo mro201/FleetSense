@@ -9,7 +9,7 @@ import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split
 
-from config import SHIP_TYPES, DATA_DATASET
+from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
 FEATURES = [
     "sog_p10",
