@@ -8,7 +8,7 @@ to each other and to the baseline.
 """
 
 from pathlib import Path
-
+import pandas as pd
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
@@ -39,13 +39,27 @@ def train_baseline(X_train, y_train) -> RandomForestClassifier:
     return model
 
 
-def predict_baseline(X_test) -> list:
-    """Make predictions with the trained baseline model."""
+def load_baseline_model() -> RandomForestClassifier:
+    """Load the trained baseline model, raising a clear error if it hasn't been trained yet."""
     try:
-        model = joblib.load(MODEL_PATH)
-        return model.predict(X_test)
+        return joblib.load(MODEL_PATH)
     except FileNotFoundError:
         raise FileNotFoundError(f"Baseline model not found at {MODEL_PATH}. Train the model first.")
+
+
+def predict_baseline(X_test) -> list:
+    """Make batch predictions with the trained baseline model."""
+    return load_baseline_model().predict(X_test)
+
+
+def predict_baseline_proba(features) -> dict:
+    model = load_baseline_model()
+    row = pd.DataFrame([features], columns=FEATURE_COLUMNS)
+
+    predicted_class = model.predict(row)[0]
+    probabilities = dict(zip(model.classes_, model.predict_proba(row)[0].tolist()))
+
+    return {"vessel_type": predicted_class, "probabilities": probabilities}
 
 
 def evaluate_model(model, X_test, y_test) -> dict:
