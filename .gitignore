@@ -6,7 +6,7 @@ results/*
 __pycache__/
 *.py[codz]
 *$py.class
-
+fleetsense/outputs/*
 # C extensions
 *.so
 
