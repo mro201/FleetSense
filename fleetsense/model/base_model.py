@@ -27,38 +27,6 @@ MODEL_PARAMS = {
     "n_jobs": -1,
 }
 
-FEATURE_COLUMNS = [
-    "length_beam_ratio",
-    "draught_length_ratio",
-    "width",
-    "length",
-    "min_draught",
-    "max_draught",
-    "lat_mean",
-    "sog_p90",
-    "CargoY_ratio",
-    "lon_mean",
-    "max_speed",
-    "draught_variability",
-    "sog_median",
-    "fishing_ratio",
-    "CargoZ_ratio",
-    "anchor_ratio",
-    "moored_ratio",
-    "lon_std",
-    "time_span_seconds",
-    "rot_std",
-    "frac_time_slow",
-    "rot_mean_abs",
-    "CargoOS_ratio",
-    "n_pings",
-    "cog_variability",
-    "mean_ping_interval_seconds",
-    "lat_std",
-    "mean_moving_speed",
-    "sog_p10",
-]
-
 TARGET_COLUMN = "ship_type"
 
 
