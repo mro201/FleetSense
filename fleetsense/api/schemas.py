@@ -9,42 +9,35 @@ from pydantic import BaseModel
 
 
 class VesselFeatures(BaseModel):
-    mean_moving_speed: float
-    max_speed: float
-    std_speed: float
-    sog_p10: float
-    sog_median: float
-    sog_p90: float
-    frac_time_slow: float
-    cog_variability: float
-    rot_mean_abs: float
-    rot_std: float
-    heading_cog_diff_mean: float
-    fishing_ratio: float
-    anchor_ratio: float
-    underway_engine_ratio: float
-    moored_ratio: float
-    lat_std: float
-    lon_std: float
-    lat_mean: float
-    lon_mean: float
-    bbox_area: float
-    length: float
-    width: float
     length_beam_ratio: float
-    max_draught: float
-    min_draught: float
-    draught_variability: float
     draught_length_ratio: float
+    width: float
+    length: float
+    min_draught: float
+    max_draught: float
+    lat_mean: float
+    sog_p90: float
     CargoY_ratio: float
+    lon_mean: float
+    max_speed: float
+    draught_variability: float
+    sog_median: float
+    fishing_ratio: float
     CargoZ_ratio: float
-    CargoOS_ratio: float
-    CargoX_ratio: float
-    CargoReserved_ratio: float
-    n_pings: float
+    anchor_ratio: float
+    moored_ratio: float
+    lon_std: float
     time_span_seconds: float
+    rot_std: float
+    frac_time_slow: float
+    rot_mean_abs: float
+    CargoOS_ratio: float
+    n_pings: float
+    cog_variability: float
     mean_ping_interval_seconds: float
-    # Note: adjust to match your final 34-feature list exactly once decided
+    lat_std: float
+    mean_moving_speed: float
+    sog_p10: float
 
 
 class PredictionResponse(BaseModel):

@@ -12,11 +12,12 @@ import pandas as pd
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
+from fleetsense.features.data_loader import FEATURES
 
 # ── Design choices ────────────────────────────────────────────────────
 RANDOM_STATE = 42
 
-MODEL_PATH = Path(__file__).parent.parent / "outputs" / "baseline_rf.pkl"
+MODEL_PATH = Path(__file__).parent.parent / "outputs" / "baseline_rf2.pkl"
 
 MODEL_PARAMS = {
     "n_estimators": 200,
@@ -54,7 +55,7 @@ def predict_baseline(X_test) -> list:
 
 def predict_baseline_proba(features) -> dict:
     model = load_baseline_model()
-    row = pd.DataFrame([features], columns=FEATURE_COLUMNS)
+    row = pd.DataFrame([features], columns=FEATURES)
 
     predicted_class = model.predict(row)[0]
     probabilities = dict(zip(model.classes_, model.predict_proba(row)[0].tolist()))
