@@ -19,7 +19,7 @@ def dtype_to_python_type(dtype_str: str) -> type:
 VesselFeatures = create_model(
     "VesselFeatures",
     **{col: (dtype_to_python_type(dtype), ...) for col, dtype in _schema["dtypes"].items()},
-)
+)  # type: ignore[call-overload]  # fields are generated dynamically from the saved schema; mypy can't verify them statically
 
 
 class PredictionResponse(BaseModel):
