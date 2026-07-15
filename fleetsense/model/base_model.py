@@ -7,7 +7,6 @@ evaluates the model identically. This ensures drift experiments are comparable
 to each other and to the baseline.
 """
 
-import json
 from pathlib import Path
 
 import joblib
@@ -15,7 +14,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
-from fleetsense.features.data_loader import FEATURES
+from fleetsense.features.data_loader import load_schema, FEATURES
 
 # ── Design choices ────────────────────────────────────────────────────
 RANDOM_STATE = 42
@@ -34,9 +33,6 @@ MODEL_PARAMS = {
 TARGET_COLUMN = "ship_type"
 
 
-SCHEMA_PATH = Path(__file__).parent.parent / "outputs" / "schema.json"
-
-
 def train_baseline(X_train, y_train) -> RandomForestClassifier:
     """Train the baseline Random Forest with fixed hyperparameters."""
     model = RandomForestClassifier(**MODEL_PARAMS)
@@ -45,20 +41,7 @@ def train_baseline(X_train, y_train) -> RandomForestClassifier:
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, MODEL_PATH)
 
-    schema = {
-        "columns": list(X_train.columns),
-        "dtypes": {col: str(dtype) for col, dtype in X_train.dtypes.items()},
-    }
-    SCHEMA_PATH.write_text(json.dumps(schema, indent=2))
-
     return model
-
-
-def load_schema() -> dict:
-    """Load the feature schema saved alongside the model."""
-    if not SCHEMA_PATH.exists():
-        raise FileNotFoundError(f"No schema found at {SCHEMA_PATH}. Train the model first.")
-    return json.loads(SCHEMA_PATH.read_text())
 
 
 def load_baseline_model() -> RandomForestClassifier:

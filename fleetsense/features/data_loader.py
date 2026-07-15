@@ -3,7 +3,9 @@ Constructs deliberately biased train/test splits to induce known drift types,
 for studying how model performance degrades outside the training distribution.
 """
 
+import json
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import polars as pl
@@ -11,41 +13,21 @@ from sklearn.model_selection import train_test_split
 
 from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
-FEATURES = [
-    "length_beam_ratio",
-    "draught_length_ratio",
-    "width",
-    "length",
-    "min_draught",
-    "max_draught",
-    "lat_mean",
-    "sog_p90",
-    "CargoY_ratio",
-    "lon_mean",
-    "max_speed",
-    "draught_variability",
-    "sog_median",
-    "fishing_ratio",
-    "CargoZ_ratio",
-    "anchor_ratio",
-    "moored_ratio",
-    "lon_std",
-    "time_span_seconds",
-    "rot_std",
-    "frac_time_slow",
-    "rot_mean_abs",
-    "CargoOS_ratio",
-    "n_pings",
-    "cog_variability",
-    "mean_ping_interval_seconds",
-    "lat_std",
-    "mean_moving_speed",
-    "sog_p10",
-]
-
 TARGET_COLUMN = "ship_type"
+SCHEMA_PATH = Path(__file__).parent.parent / "outputs" / "schema.json"
 
 RANDOM_STATE = 42
+
+
+def load_schema() -> dict:
+    """Load the feature schema saved alongside the model."""
+    if not SCHEMA_PATH.exists():
+        raise FileNotFoundError(f"No schema found at {SCHEMA_PATH}. Train the model first.")
+    return json.loads(SCHEMA_PATH.read_text())
+
+
+SCHEMA = load_schema()
+FEATURES = SCHEMA["columns"]
 
 
 def get_dataset() -> pl.DataFrame:
