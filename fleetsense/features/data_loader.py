@@ -14,8 +14,7 @@ from sklearn.model_selection import train_test_split
 from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
 TARGET_COLUMN = "Ship type"
-SCHEMA_PATH = Path(__file__).parent.parent / "outputs" / "schema.json"
-
+SCHEMA_PATH = Path(__file__).parent / "schema.json"
 RANDOM_STATE = 42
 
 
@@ -129,3 +128,8 @@ def compositional_split(
     x_test, y_test = get_features_and_target(test)
 
     return x_train, x_test, y_train, y_test
+
+
+if __name__ == "__main__":
+    schema = load_schema()
+    print("success")
