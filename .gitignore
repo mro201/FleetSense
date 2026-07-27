@@ -1,5 +1,10 @@
 #data
 data/*
+!data/dataset/
+data/dataset/*
+!data/dataset/vessel_weekly_features_sample.csv
+
+
 results/*
 .vscode/
 # Byte-compiled / optimized / DLL files
