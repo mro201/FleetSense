@@ -16,7 +16,7 @@ all over the whole year.
 ## Why these don't contradict each other
 
 The features driving the PSI spike (`lat_mean`, `lon_mean`) ranked low in
-permutation importance — the model was never relying on them much to begin
+permutation importance. The model was never relying on them much to begin
 with. So a real, substantial shift in the input distribution can happen
 without moving accuracy or predictions, because the model isn't using that
 signal to decide.
