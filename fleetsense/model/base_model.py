@@ -7,6 +7,8 @@ evaluates the model identically. This ensures drift experiments are comparable
 to each other and to the baseline.
 """
 
+import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -14,13 +16,13 @@ import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 
-from fleetsense.features.data_loader import load_schema, FEATURES
+from fleetsense.features.data_loader import FEATURES, load_schema
 
 # ── Design choices ────────────────────────────────────────────────────
 RANDOM_STATE = 42
 
 MODEL_PATH = Path(__file__).parent.parent / "outputs" / "baseline_rf.pkl"
-
+LOG_PATH = Path(__file__).parent.parent / "outputs" / "predict_log.json"
 MODEL_PARAMS = {
     "n_estimators": 200,
     "max_depth": None,
@@ -72,6 +74,20 @@ def predict_baseline_proba(features) -> dict:
 
     predicted_class = model.predict(row)[0]
     probabilities = dict(zip(model.classes_, model.predict_proba(row)[0].tolist()))
+
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "features": features,
+        "vessel_type": predicted_class,
+        "probabilities": probabilities,
+    }
+
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(LOG_PATH, "a", encoding="utf-8") as file:
+            file.write(json.dumps(log_entry) + "\n")
+    except OSError as e:
+        print(f"Failed to write prediction log: {e}")
 
     return {"vessel_type": predicted_class, "probabilities": probabilities}
 
