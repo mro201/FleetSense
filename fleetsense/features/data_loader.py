@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
-TARGET_COLUMN = "ship_type"
+TARGET_COLUMN = "Ship type"
 SCHEMA_PATH = Path(__file__).parent.parent / "outputs" / "schema.json"
 
 RANDOM_STATE = 42
@@ -30,9 +30,9 @@ SCHEMA = load_schema()
 FEATURES = SCHEMA["columns"]
 
 
-def get_dataset() -> pl.DataFrame:
+def get_dataset(path: Path = DATA_DATASET / "vessel_weekly_features.csv") -> pl.DataFrame:
     """Load the preprocessed dataset from disk."""
-    return pl.read_csv(DATA_DATASET / "vessel_weekly_features.csv")
+    return pl.read_csv(path)
 
 
 def get_features_and_target(df: pl.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
