@@ -9,14 +9,16 @@ Usage:
 import argparse
 from pathlib import Path
 
+import polars as pl
 from sklearn.model_selection import train_test_split
 
 from fleetsense.features.data_loader import FEATURES, TARGET_COLUMN, get_dataset
 from fleetsense.model.base_model import RANDOM_STATE, evaluate_model, train_baseline
+from fleetsense.monitoring.distribution_monitoring import build_baselines, save_baselines
 
 ROOT = Path(__file__).parent.parent
 
-DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features_sample.csv"
+DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features .csv"
 
 
 def parse_args() -> argparse.Namespace:
@@ -47,6 +49,11 @@ def main() -> None:
     y = df[TARGET_COLUMN]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
+
+    # PSI baseline
+    baseline_data = pl.from_pandas(X_train.assign(**{TARGET_COLUMN: y_train}))
+    psi_baseline = build_baselines(baseline_data, FEATURES, TARGET_COLUMN)
+    save_baselines(psi_baseline)
 
     print("Training baseline model ...")
     model = train_baseline(X_train, y_train)

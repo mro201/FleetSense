@@ -21,12 +21,12 @@ in the model's predicted classes.
 """
 
 import pickle
-from datetime import date
 from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
 import polars as pl
+
 
 # PSI thresholds commonly used for interpretation
 PSI_STABLE = 0.10
@@ -39,6 +39,7 @@ _NO_CLASS = "__all__"
 # baselines dict returned by build_baselines, and the "feature" label used for it
 # in monitor_all_features' combined output.
 _PREDICTED_CLASS_KEY = "__predicted_class_balance__"
+BASELINE_PATH = Path(__file__).parent.parent / "outputs/psi_baseline.pkl"
 
 
 class FeatureBaseline(NamedTuple):
@@ -137,15 +138,11 @@ def _period_as_date_expr(df: pl.DataFrame, period_col: str, period_format: str |
 
 
 def build_baselines(
-    df: pl.DataFrame,
+    baseline_df: pl.DataFrame,
     numeric_features: list[str],
-    period_col: str,
-    baseline_start: date,
-    baseline_end: date,
     class_col: str | None = None,
     predicted_class_col: str | None = None,
     n_bins: int = 10,
-    period_format: str | None = None,
 ) -> dict[str, dict[str, FeatureBaseline] | ClassBalanceBaseline]:
     """Compute bin edges and reference proportions once per feature (and per class,
     if class_col is given), plus optionally a predicted-class balance baseline, from
@@ -165,11 +162,7 @@ def build_baselines(
     Pass the result into monitor_numeric_feature / monitor_all_features so the
     baseline only needs to be computed once, rather than being rebuilt on every call.
     """
-    period_as_date = _period_as_date_expr(df, period_col, period_format=period_format)
-    baseline_df = df.filter(period_as_date.is_between(baseline_start, baseline_end, closed="both"))
-
     class_values = baseline_df[class_col].unique().sort().to_list() if class_col else [_NO_CLASS]
-
     baselines: dict[str, dict[str, FeatureBaseline] | ClassBalanceBaseline] = {}
     for feature in numeric_features:
         per_class: dict[str, FeatureBaseline] = {}
@@ -181,30 +174,28 @@ def build_baselines(
         baselines[feature] = per_class
 
     if predicted_class_col is not None:
-        classes = df[predicted_class_col].unique().sort().to_list()
+        classes = baseline_df[predicted_class_col].unique().sort().to_list()
         reference_props = _class_proportions(baseline_df, predicted_class_col, classes)
         baselines[_PREDICTED_CLASS_KEY] = ClassBalanceBaseline(classes=classes, reference_props=reference_props)
 
     return baselines
 
 
-def save_baselines(baselines: dict, path: Path) -> None:
+def save_baselines(baselines: dict) -> None:
     """Persist a baselines dict (from build_baselines) to disk, so it can be reused
     in a later session without recomputing it.
 
     Uses pickle, since the baselines are a dict of namedtuples holding NumPy arrays
     — not something that maps cleanly to a plain text format.
     """
-    path = Path(path)
-    with path.open("wb") as f:
+    with BASELINE_PATH.open("wb") as f:
         pickle.dump(baselines, f)
 
 
-def load_baselines(path: Path) -> dict:
+def load_baselines() -> dict:
     """Load a baselines dict previously written by save_baselines."""
-    path = Path(path)
-    with path.open("rb") as f:
-        return pickle.load(f)  # noqa: S301 -- trusted, project-generated file
+    with BASELINE_PATH.open("rb") as f:
+        return pickle.load(f)
 
 
 # --- Orchestration ---------------------------------------------------------------
