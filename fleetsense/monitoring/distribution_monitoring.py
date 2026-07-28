@@ -27,7 +27,6 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-from fleetsense.features.data_loader import load_schema
 
 # PSI thresholds commonly used for interpretation
 PSI_STABLE = 0.10
@@ -40,6 +39,7 @@ _NO_CLASS = "__all__"
 # baselines dict returned by build_baselines, and the "feature" label used for it
 # in monitor_all_features' combined output.
 _PREDICTED_CLASS_KEY = "__predicted_class_balance__"
+BASELINE_PATH = Path(__file__).parent.parent / "outputs/psi_baseline.pkl"
 
 
 class FeatureBaseline(NamedTuple):
@@ -163,7 +163,6 @@ def build_baselines(
     baseline only needs to be computed once, rather than being rebuilt on every call.
     """
     class_values = baseline_df[class_col].unique().sort().to_list() if class_col else [_NO_CLASS]
-    numeric_features = load_schema()["columns"]
     baselines: dict[str, dict[str, FeatureBaseline] | ClassBalanceBaseline] = {}
     for feature in numeric_features:
         per_class: dict[str, FeatureBaseline] = {}
@@ -182,23 +181,21 @@ def build_baselines(
     return baselines
 
 
-def save_baselines(baselines: dict, path: Path) -> None:
+def save_baselines(baselines: dict) -> None:
     """Persist a baselines dict (from build_baselines) to disk, so it can be reused
     in a later session without recomputing it.
 
     Uses pickle, since the baselines are a dict of namedtuples holding NumPy arrays
     — not something that maps cleanly to a plain text format.
     """
-    path = Path(path)
-    with path.open("wb") as f:
+    with BASELINE_PATH.open("wb") as f:
         pickle.dump(baselines, f)
 
 
-def load_baselines(path: Path) -> dict:
+def load_baselines() -> dict:
     """Load a baselines dict previously written by save_baselines."""
-    path = Path(path)
-    with path.open("rb") as f:
-        return pickle.load(f)  # noqa: S301 -- trusted, project-generated file
+    with BASELINE_PATH.open("rb") as f:
+        return pickle.load(f)
 
 
 # --- Orchestration ---------------------------------------------------------------
