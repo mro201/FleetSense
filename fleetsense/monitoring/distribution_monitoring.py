@@ -21,12 +21,13 @@ in the model's predicted classes.
 """
 
 import pickle
-from datetime import date
 from pathlib import Path
 from typing import NamedTuple
 
 import numpy as np
 import polars as pl
+
+from fleetsense.features.data_loader import load_schema
 
 # PSI thresholds commonly used for interpretation
 PSI_STABLE = 0.10
@@ -137,15 +138,11 @@ def _period_as_date_expr(df: pl.DataFrame, period_col: str, period_format: str |
 
 
 def build_baselines(
-    df: pl.DataFrame,
+    baseline_df: pl.DataFrame,
     numeric_features: list[str],
-    period_col: str,
-    baseline_start: date,
-    baseline_end: date,
     class_col: str | None = None,
     predicted_class_col: str | None = None,
     n_bins: int = 10,
-    period_format: str | None = None,
 ) -> dict[str, dict[str, FeatureBaseline] | ClassBalanceBaseline]:
     """Compute bin edges and reference proportions once per feature (and per class,
     if class_col is given), plus optionally a predicted-class balance baseline, from
@@ -165,11 +162,8 @@ def build_baselines(
     Pass the result into monitor_numeric_feature / monitor_all_features so the
     baseline only needs to be computed once, rather than being rebuilt on every call.
     """
-    period_as_date = _period_as_date_expr(df, period_col, period_format=period_format)
-    baseline_df = df.filter(period_as_date.is_between(baseline_start, baseline_end, closed="both"))
-
     class_values = baseline_df[class_col].unique().sort().to_list() if class_col else [_NO_CLASS]
-
+    numeric_features = load_schema()["columns"]
     baselines: dict[str, dict[str, FeatureBaseline] | ClassBalanceBaseline] = {}
     for feature in numeric_features:
         per_class: dict[str, FeatureBaseline] = {}
@@ -181,7 +175,7 @@ def build_baselines(
         baselines[feature] = per_class
 
     if predicted_class_col is not None:
-        classes = df[predicted_class_col].unique().sort().to_list()
+        classes = baseline_df[predicted_class_col].unique().sort().to_list()
         reference_props = _class_proportions(baseline_df, predicted_class_col, classes)
         baselines[_PREDICTED_CLASS_KEY] = ClassBalanceBaseline(classes=classes, reference_props=reference_props)
 
