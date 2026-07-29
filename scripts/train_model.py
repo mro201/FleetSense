@@ -7,15 +7,17 @@ Usage:
 """
 
 import argparse
+import json
+from datetime import date, datetime, timezone
 from pathlib import Path
-from datetime import date, timezone, datetime
+
+import pandas as pd
 import polars as pl
 from sklearn.model_selection import train_test_split
-import pandas as pd
+
 from fleetsense.features.data_loader import FEATURES, TARGET_COLUMN, get_dataset
 from fleetsense.model.base_model import RANDOM_STATE, evaluate_model, train_baseline
 from fleetsense.monitoring.distribution_monitoring import build_baselines, save_baselines
-import json
 
 ROOT = Path(__file__).parent.parent
 LAST_TRAINING_PATH = ROOT / "fleetsense" / "outputs" / "last_training.json"
@@ -81,7 +83,7 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
 
     if df.empty:
         raise ValueError(
-            f"No data found in range {start} to {end}. " "Check the date range or the dataset's date coverage."
+            f"No data found in range {start} to {end}. Check the date range or the dataset's date coverage."
         )
 
     X = df[FEATURES]

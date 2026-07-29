@@ -6,13 +6,14 @@ Usage:
 """
 
 import json
-from datetime import datetime, timezone, date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import polars as pl
-from train_model import train, LAST_TRAINING_PATH
-from fleetsense.model.base_model import LOG_PATH
+from train_model import LAST_TRAINING_PATH, train
+
 from fleetsense.features.data_loader import FEATURES
+from fleetsense.model.base_model import LOG_PATH
 from fleetsense.monitoring.distribution_monitoring import (
     PSI_MODERATE,
     check_drift,
