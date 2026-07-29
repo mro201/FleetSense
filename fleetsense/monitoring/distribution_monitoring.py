@@ -188,6 +188,7 @@ def save_baselines(baselines: dict) -> None:
     Uses pickle, since the baselines are a dict of namedtuples holding NumPy arrays
     — not something that maps cleanly to a plain text format.
     """
+    BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with BASELINE_PATH.open("wb") as f:
         pickle.dump(baselines, f)
 
