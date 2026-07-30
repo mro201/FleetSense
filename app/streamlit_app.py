@@ -1,5 +1,6 @@
 import requests
 import streamlit as st
+
 from fleetsense.features.data_loader import load_schema
 
 st.set_page_config(page_title="FleetSense", page_icon="🧭", layout="wide")
@@ -163,7 +164,7 @@ if submitted:
         f"""
     <div class="result-card">
         <div class="result-label">Predicted vessel type</div>
-        <div class="result-value">{result['vessel_type']}</div>
+        <div class="result-value">{result["vessel_type"]}</div>
     </div>
     """,
         unsafe_allow_html=True,
