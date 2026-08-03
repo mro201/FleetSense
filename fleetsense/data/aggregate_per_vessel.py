@@ -17,11 +17,16 @@ OUT_DIR = DATA_VESSEL
 OUT_DIR.mkdir(exist_ok=True)
 
 
-def read_zip_csv(zip_path: Path) -> pl.LazyFrame:
-    with zipfile.ZipFile(zip_path) as zf:
-        csv_name = [f for f in zf.namelist() if f.endswith(".csv")][0]
-        with zf.open(csv_name) as f:
-            raw = f.read()
+def read_zip_csv(zip_path: Path) -> pl.LazyFrame | None:
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            csv_name = [f for f in zf.namelist() if f.endswith(".csv")][0]
+            with zf.open(csv_name) as f:
+                raw = f.read()
+    except zipfile.BadZipFile:
+        print(f"  Skipping corrupt zip: {zip_path.name}")
+        return None
+
     return pl.read_csv(
         io.BytesIO(raw),
         infer_schema_length=1000,
@@ -47,29 +52,38 @@ def merge_vessel_files():
             f.unlink()
 
 
-def process_day(zip_path: Path):
+def process_day(zip_path: Path, force: bool = False) -> None:
+    date_str = zip_path.stem.replace("aisdk-", "")
+
+    already_processed = any(OUT_DIR.glob(f"*_{date_str}.parquet"))
+    if already_processed and not force:
+        print(f"  Already processed {date_str}, skipping.")
+        return
+
     print(f"Processing {zip_path.name}...")
     lf = read_zip_csv(zip_path)
+    if lf is None:
+        return  # corrupt zip, already logged in read_zip_csv
+
     lf = filter_vessels(lf)
     df = lf.collect()
 
     if df.is_empty():
         return
 
-    date_str = zip_path.stem.replace("aisdk-", "")  # e.g. "2025-06-01"
     for (imo,), group_df in df.group_by("IMO"):
         out_path = OUT_DIR / f"{imo}_{date_str}.parquet"
         group_df.write_parquet(out_path, compression="snappy")
 
 
-def process_range(start_date: date, end_date: date):
+def process_range(start_date: date, end_date: date, force: bool = False) -> None:
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
     zip_files = sorted(ZIP_DIR.glob("*.zip"))
     zip_files = [f for f in zip_files if start_str <= f.stem.replace("aisdk-", "") <= end_str]
 
     for zip_file in zip_files:
-        process_day(zip_file)
+        process_day(zip_file, force=force)
 
 
 if __name__ == "__main__":
