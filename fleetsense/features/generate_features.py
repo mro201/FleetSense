@@ -30,8 +30,9 @@ Filters to be added:
 
 import sys
 from pathlib import Path
-
+from datetime import date
 import polars as pl
+from typing import Literal
 
 sys.path.append(str(Path("..").resolve()))
 from fleetsense.config import DATA_DATASET, DATA_VESSEL, TIMESTAMP_FMT
@@ -44,7 +45,7 @@ TIMESTAMP_COL = "timestamp"  # renamed on load — avoids issues with '#' in nam
 
 
 # Main feature function
-def compute_features_for_vessel(imo: int) -> pl.DataFrame:
+def compute_features_for_vessel(imo: int, start: date, end: date) -> pl.DataFrame:
     files = sorted(IN_DIR.glob(f"{imo}_*.parquet"))
     if not files:
         return pl.DataFrame()
@@ -52,12 +53,15 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
     # 1. Load, rename timestamp col, parse to Datetime, sort
     combined = (
         pl.concat([pl.read_parquet(f) for f in files])
-        .rename({"# Timestamp": TIMESTAMP_COL})  # remove '#' from name
+        .rename({"# Timestamp": TIMESTAMP_COL})
         .with_columns(pl.col(TIMESTAMP_COL).str.to_datetime(TIMESTAMP_FMT).alias(TIMESTAMP_COL))
+        .filter(pl.col(TIMESTAMP_COL).dt.date().is_between(start, end))
         .sort(TIMESTAMP_COL)
         .with_columns(pl.col(TIMESTAMP_COL).dt.truncate("1w").alias("_week_start"))
     )
 
+    if combined.is_empty():
+        return pl.DataFrame()
     # 3. Main weekly aggregation
     features = (
         combined.group_by_dynamic(TIMESTAMP_COL, every="1w")
@@ -135,6 +139,7 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
                 ),
                 # group_by_dynamic index column is already Datetime — just rename it
                 pl.col(TIMESTAMP_COL).alias("week_start"),
+                pl.lit(imo).alias("imo"),
             ]
         )
     )
@@ -142,35 +147,85 @@ def compute_features_for_vessel(imo: int) -> pl.DataFrame:
     return features
 
 
-def generate_dataset():
-    imo_set = list(
-        set(
-            p.stem.split("_")[0]
-            for p in IN_DIR.glob("*.parquet")
-            if p.stem.split("_")[0].isdigit()  # <-- skip 'Unknown' and any other non-numeric
-        )
-    )
-    print(f"Computing features for {len(imo_set)} vessels...")
+def _load_existing_keys(out_path: Path) -> set[tuple[str, str]]:
+    """Return the set of (imo, week_start) pairs already present in the output file."""
+    if not out_path.exists():
+        return set()
+    existing = pl.read_csv(out_path, columns=["imo", "week_start"])
+    return set(zip(existing["imo"].cast(pl.Utf8).to_list(), existing["week_start"].to_list()))
+
+
+def _load_imo_set(start_str: str, end_str: str) -> list[str]:
+    relevant_files = []
+    for p in IN_DIR.glob("*.parquet"):
+        parts = p.stem.split("_", 1)
+        if len(parts) != 2:
+            continue  # skip files without a date suffix, e.g. merged "{imo}.parquet"
+        imo_str, date_str = parts
+        if not imo_str.isdigit():
+            continue
+        if start_str <= date_str <= end_str:
+            relevant_files.append(p)
+
+    imo_set = list(set(p.stem.split("_", 1)[0] for p in relevant_files))
+    print(f"Computing features for {len(imo_set)} vessels ({start_str} to {end_str})...")
+    return imo_set
+
+
+def generate_dataset(
+    start: date,
+    end: date,
+    mode: Literal["overwrite", "append"] = "overwrite",
+) -> None:
+    start_str = start.strftime("%Y-%m-%d")
+    end_str = end.strftime("%Y-%m-%d")
+
+    imo_set = _load_imo_set(start_str, end_str)
 
     out_path = OUT_DIR / "vessel_weekly_features.csv"
-    first = True
+    file_exists = out_path.exists()
 
-    for i, imo in enumerate(imo_set):
-        if i % 100 == 0:
-            print(f"  {i}/{len(imo_set)} vessels processed...")
+    existing_keys = _load_existing_keys(out_path) if mode == "append" and file_exists else set()
+    if existing_keys:
+        print(f"Found {len(existing_keys)} existing (imo, week) rows, will skip duplicates.")
 
-        features = compute_features_for_vessel(int(imo))
+    write_header = mode == "overwrite" or not file_exists
+    file_mode = "wb" if (mode == "overwrite" or not file_exists) else "ab"
 
-        features = features.filter((pl.col("n_pings") >= 100))
+    skipped_duplicates = 0
 
-        if features.is_empty():
-            continue
+    with open(out_path, file_mode) as f:
+        header_written = False
+        for i, imo in enumerate(imo_set):
+            if i % 100 == 0:
+                print(f"  {i}/{len(imo_set)} vessels processed...")
 
-        if first:
-            features.write_csv(out_path)
-            first = False
-        else:
-            with open(out_path, "ab") as f:
-                features.write_csv(f, include_header=False)
+            features = compute_features_for_vessel(int(imo), start, end)
 
-    print(f"Done. Output written to {out_path}")
+            if features.is_empty():
+                continue
+
+            features = features.filter(pl.col("n_pings") >= 100)
+
+            if features.is_empty():
+                continue
+
+            if existing_keys:
+                before = features.height
+                key_expr = pl.concat_str(
+                    [pl.col("imo").cast(pl.Utf8), pl.col("week_start").cast(pl.Utf8)],
+                    separator="||",
+                )
+                existing_key_strs = [f"{k[0]}||{k[1]}" for k in existing_keys]
+                features = features.filter(~key_expr.is_in(existing_key_strs))
+                skipped_duplicates += before - features.height
+
+                if features.is_empty():
+                    continue
+
+            features.write_csv(f, include_header=(write_header and not header_written))
+            header_written = True
+
+    print(f"Done. Output written to {out_path} (mode={mode})")
+    if existing_keys:
+        print(f"Skipped {skipped_duplicates} duplicate rows already present in the file.")

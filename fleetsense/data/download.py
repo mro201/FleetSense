@@ -14,21 +14,28 @@ from fleetsense.config import DATA_RAW
 os.makedirs(DATA_RAW, exist_ok=True)
 
 
-def download_ais_data(start: date, end: date):
+def download_ais_data(start: date, end: date) -> None:
+    total_days = (end - start).days + 1
     d = start
-    while d <= end:
+
+    for _ in range(total_days):
         filename_date = d.strftime("%Y-%m-%d")
         url = f"http://aisdata.ais.dk/aisdk-{filename_date}.zip"
-        filename = f"{DATA_RAW}/aisdk-{filename_date}.zip"
-        print(f"Downloading {url}...")
-        try:
-            urllib.request.urlretrieve(url, filename)
-            print(f"  Saved: {filename}")
-        except urllib.error.HTTPError as e:
-            print(f"  Failed ({e.code}): {url}")
-        except Exception as e:
-            print(f"  Error: {e}")
-        time.sleep(1)
+        filename = Path(DATA_RAW) / f"aisdk-{filename_date}.zip"
+
+        if filename.exists():
+            print(f"  Already exists, skipping: {filename}")
+        else:
+            print(f"Downloading {url}...")
+            try:
+                urllib.request.urlretrieve(url, filename)
+                print(f"  Saved: {filename}")
+            except urllib.error.HTTPError as e:
+                print(f"  Failed ({e.code}): {url}")
+            except Exception as e:
+                print(f"  Error: {e}")
+            time.sleep(1)
+
         d += timedelta(days=1)
 
 
