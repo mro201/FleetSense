@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import polars as pl
-from train_model import LAST_TRAINING_PATH, train
+from train_model import LAST_TRAINING_PATH, load_permutation_importance, train
 
 from fleetsense.features.data_loader import FEATURES
 from fleetsense.model.base_model import LOG_PATH
@@ -35,7 +35,10 @@ def load_last_checked() -> datetime | None:
         data_train = json.load(f)
 
     checked_up_to = datetime.fromisoformat(data["checked_up_to"])
-    data_end = datetime.fromisoformat(data_train["data_end"])  # last date the model is trained on
+
+    data_end_date = date.fromisoformat(data_train["data_end"])  # parse as date, not datetime
+    data_end = datetime.combine(data_end_date, datetime.min.time(), tzinfo=timezone.utc)  # midnight UTC
+
     return max(checked_up_to, data_end)
 
 
@@ -96,7 +99,10 @@ def main() -> bool:
     baselines = load_baselines()
     psi_results = monitor_all_features(baselines, df, FEATURES, period_col="period", class_col=None)
 
-    flagged = check_drift(psi_results, threshold=PSI_MODERATE, period_col="period", class_col=None)
+    # Load the permutation importance to weight the features in the drift check
+    importance_df = load_permutation_importance()
+    weights = importance_df["drift_weight"].to_dict()
+    flagged = check_drift(psi_results, threshold=PSI_MODERATE, period_col="period", class_col=None, weights=weights)
 
     latest_timestamp = new_predictions["timestamp"].max()
     save_last_checked(latest_timestamp)

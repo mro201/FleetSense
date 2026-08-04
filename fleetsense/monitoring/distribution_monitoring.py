@@ -27,7 +27,6 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-
 # PSI thresholds commonly used for interpretation
 PSI_STABLE = 0.10
 PSI_MODERATE = 0.25
@@ -352,9 +351,15 @@ def check_drift(
     feature_col: str = "feature",
     psi_col: str = "psi",
     class_col: str | None = "ship_type",
+    weights: dict[str, float] | None = None,
 ) -> pl.DataFrame:
     """Flag every row in a PSI results table (from monitor_all_features) whose PSI
     breaches the given threshold, and print each one as a human-readable alarm.
+
+    If weights is given, an additional weighted_psi column is computed
+    (psi * per-feature weight, default 1.0 for features not in weights) and rows
+    are flagged if EITHER the raw psi or the weighted_psi breaches the threshold.
+    Both columns are kept in the output so the two signals can be compared.
 
     Rows for the predicted-class balance (feature == _PREDICTED_CLASS_KEY) are
     printed without a class label, since that signal is per-period, not per-class.
@@ -362,19 +367,32 @@ def check_drift(
     Returns the flagged rows as a table, sorted from most to least severe, so they
     can also be inspected or plotted programmatically rather than only printed.
     """
-    flagged = psi_results.filter(pl.col(psi_col) > threshold).sort(psi_col, descending=True)
+    if weights is not None:
+        psi_results = psi_results.with_columns(
+            (pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0)).alias("weighted_psi")
+        )
+        flag_condition = (pl.col(psi_col) > threshold) | (pl.col("weighted_psi") > threshold)
+        sort_col = "weighted_psi"
+    else:
+        flag_condition = pl.col(psi_col) > threshold
+        sort_col = psi_col
+
+    flagged = psi_results.filter(flag_condition).sort(sort_col, descending=True)
 
     period_as_date = _period_as_date_expr(flagged, period_col)
     flagged = flagged.with_columns(period_as_date.alias("_period_label"))
 
     for row in flagged.iter_rows(named=True):
+        weighted_note = f", weighted PSI {row['weighted_psi']:.2f}" if weights is not None else ""
         if row[feature_col] == _PREDICTED_CLASS_KEY:
-            print(f"PREDICTION DRIFT FLAGGED — week_start {row['_period_label']} (PSI {row[psi_col]:.2f})")
+            print(
+                f"PREDICTION DRIFT FLAGGED — week_start {row['_period_label']} (PSI {row[psi_col]:.2f}{weighted_note})"
+            )
             continue
         class_part = f"{row[class_col]}: " if class_col else ""
         print(
             f"DRIFT FLAGGED — week_start {row['_period_label']}, "
-            f"{class_part}{row[feature_col]} (PSI {row[psi_col]:.2f})"
+            f"{class_part}{row[feature_col]} (PSI {row[psi_col]:.2f}{weighted_note})"
         )
 
     return flagged.sort("_period_label").drop("_period_label")
