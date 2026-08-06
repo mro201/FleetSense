@@ -7,7 +7,7 @@ WORKDIR /app
 # This installs uv and syncs dependencies before copying app code,
 # so Docker can cache this layer when only the code changes, not deps.
 COPY pyproject.toml uv.lock README.md ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-project
 
 #copy over needed code
 COPY fleetsense/ ./fleetsense/
