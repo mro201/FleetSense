@@ -10,20 +10,22 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 
 import polars as pl
-from train_model import LAST_TRAINING_PATH, load_permutation_importance, train
+from scripts.train_model import LAST_TRAINING_PATH, load_permutation_importance
 
 from fleetsense.features.data_loader import FEATURES
 from fleetsense.model.base_model import LOG_PATH
 from fleetsense.monitoring.distribution_monitoring import (
-    PSI_MODERATE,
     check_drift,
     load_baselines,
     monitor_all_features,
+    weighted_drift_score,
 )
 
 ROOT = Path(__file__).parent.parent
 
 LAST_MONITORING_PATH = ROOT / "fleetsense" / "outputs" / "last_monitoring.json"
+MEAN_THRESHOLD = 0.1
+STD_THRESHOLD = 0.1
 
 
 def load_last_checked() -> datetime | None:
@@ -102,16 +104,35 @@ def main() -> bool:
     # Load the permutation importance to weight the features in the drift check
     importance_df = load_permutation_importance()
     weights = importance_df["drift_weight"].to_dict()
-    flagged = check_drift(psi_results, threshold=PSI_MODERATE, period_col="period", class_col=None, weights=weights)
+    per_feature_flagged = check_drift(psi_results, threshold=0.1, weights=weights, class_col=None)
+    period_scores = weighted_drift_score(psi_results, weights, period_col="period")
 
+    mean_flagged = period_scores.filter(pl.col("period_weighted_drift_mean") > MEAN_THRESHOLD)
+    std_flagged = period_scores.filter(pl.col("period_weighted_drift_std") > STD_THRESHOLD)
+
+    for row in mean_flagged.iter_rows(named=True):
+        print(f"Period {row['period']} flagged for high mean drift: {row['period_weighted_drift_mean']:.4f}")
+    for row in std_flagged.iter_rows(named=True):
+        print(
+            f"Period {row['period']} flagged for concentrated drift (high std): {row['period_weighted_drift_std']:.4f}"
+        )
+
+    drift_flagged = per_feature_flagged.height > 0 or mean_flagged.height > 0 or std_flagged.height > 0
+
+    if drift_flagged:
+        reasons = []
+        if per_feature_flagged.height > 0:
+            reasons.append(f"{per_feature_flagged.height} individual feature breach(es)")
+        if mean_flagged.height > 0:
+            reasons.append(f"{mean_flagged.height} period(s) with high mean drift")
+        if std_flagged.height > 0:
+            reasons.append(f"{std_flagged.height} period(s) with concentrated drift (high std)")
+        print(f"Retraining triggered: {', '.join(reasons)}")
+        # train(end=date.today())
+    else:
+        print("No drift detected on any signal.")
     latest_timestamp = new_predictions["timestamp"].max()
     save_last_checked(latest_timestamp)
-
-    drift_flagged = flagged.height > 0
-    if not drift_flagged:
-        print("No drift detected.")
-    else:
-        train(end=date.today())
 
     return drift_flagged
 
