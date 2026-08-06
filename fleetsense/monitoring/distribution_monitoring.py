@@ -396,3 +396,35 @@ def check_drift(
         )
 
     return flagged.sort("_period_label").drop("_period_label")
+
+
+def weighted_drift_score(
+    psi_results: pl.DataFrame,
+    weights: dict[str, float],
+    period_col: str = "period",
+    feature_col: str = "feature",
+    psi_col: str = "psi",
+) -> pl.DataFrame:
+    """Aggregate per-feature PSI into mean and std per period, both raw and
+    importance-weighted.
+
+    Mean reflects typical drift magnitude across features; std reflects how
+    concentrated vs. spread out that drift is. A high std with a low mean
+    signals a severe breach in one or a few features being diluted by many
+    stable ones — exactly the case per-feature detail (see check_drift) must
+    stay visible for, since neither aggregate alone should be trusted as
+    the full picture.
+    """
+    feature_rows = psi_results.filter(pl.col(feature_col) != _PREDICTED_CLASS_KEY)
+
+    weighted = feature_rows.with_columns(
+        (pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0)).alias("weighted_psi")
+    )
+
+    return (
+        weighted.group_by(period_col)
+        .agg(
+            pl.col("weighted_psi").mean().alias("period_weighted drift"),
+        )
+        .sort(period_col)
+    )
