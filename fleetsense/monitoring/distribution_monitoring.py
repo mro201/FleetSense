@@ -315,6 +315,24 @@ def monitor_all_features(
     return combined.sort(sort_cols)
 
 
+def add_weighted_psi(
+    psi_results: pl.DataFrame,
+    weights: dict[str, float],
+    feature_col: str = "feature",
+    psi_col: str = "psi",
+) -> pl.DataFrame:
+    """Add a weighted_psi column to a PSI results table, multiplying each row's
+    PSI by its feature's importance weight (default 1.0 for features not in
+    weights). Rows for the predicted-class balance are left unweighted, since
+    that signal isn't a feature and has no importance weight."""
+    return psi_results.with_columns(
+        pl.when(pl.col(feature_col) == _PREDICTED_CLASS_KEY)
+        .then(pl.col(psi_col))
+        .otherwise(pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0))
+        .alias("weighted_psi")
+    )
+
+
 def monitor_class_balance(
     df: pl.DataFrame,
     class_col: str,
@@ -351,26 +369,14 @@ def check_drift(
     feature_col: str = "feature",
     psi_col: str = "psi",
     class_col: str | None = "ship_type",
-    weights: dict[str, float] | None = None,
 ) -> pl.DataFrame:
-    """Flag every row in a PSI results table (from monitor_all_features) whose PSI
-    breaches the given threshold, and print each one as a human-readable alarm.
-
-    If weights is given, an additional weighted_psi column is computed
-    (psi * per-feature weight, default 1.0 for features not in weights) and rows
-    are flagged if EITHER the raw psi or the weighted_psi breaches the threshold.
-    Both columns are kept in the output so the two signals can be compared.
-
-    Rows for the predicted-class balance (feature == _PREDICTED_CLASS_KEY) are
-    printed without a class label, since that signal is per-period, not per-class.
-
-    Returns the flagged rows as a table, sorted from most to least severe, so they
-    can also be inspected or plotted programmatically rather than only printed.
+    """Flag every row in a PSI results table whose PSI breaches the given
+    threshold, on either raw or weighted PSI if a weighted_psi column is
+    present. Prints each flagged row as a human-readable alarm.
     """
-    if weights is not None:
-        psi_results = psi_results.with_columns(
-            (pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0)).alias("weighted_psi")
-        )
+    has_weighted = "weighted_psi" in psi_results.columns
+
+    if has_weighted:
         flag_condition = (pl.col(psi_col) > threshold) | (pl.col("weighted_psi") > threshold)
         sort_col = "weighted_psi"
     else:
@@ -383,7 +389,7 @@ def check_drift(
     flagged = flagged.with_columns(period_as_date.alias("_period_label"))
 
     for row in flagged.iter_rows(named=True):
-        weighted_note = f", weighted PSI {row['weighted_psi']:.2f}" if weights is not None else ""
+        weighted_note = f", weighted PSI {row['weighted_psi']:.2f}" if has_weighted else ""
         if row[feature_col] == _PREDICTED_CLASS_KEY:
             print(
                 f"PREDICTION DRIFT FLAGGED — week_start {row['_period_label']} (PSI {row[psi_col]:.2f}{weighted_note})"
@@ -400,31 +406,23 @@ def check_drift(
 
 def weighted_drift_score(
     psi_results: pl.DataFrame,
-    weights: dict[str, float],
     period_col: str = "period",
     feature_col: str = "feature",
     psi_col: str = "psi",
 ) -> pl.DataFrame:
     """Aggregate per-feature PSI into mean and std per period, both raw and
-    importance-weighted.
-
-    Mean reflects typical drift magnitude across features; std reflects how
-    concentrated vs. spread out that drift is. A high std with a low mean
-    signals a severe breach in one or a few features being diluted by many
-    stable ones — exactly the case per-feature detail (see check_drift) must
-    stay visible for, since neither aggregate alone should be trusted as
-    the full picture.
+    importance-weighted. Requires psi_results to already have a weighted_psi
+    column (see add_weighted_psi).
     """
     feature_rows = psi_results.filter(pl.col(feature_col) != _PREDICTED_CLASS_KEY)
 
-    weighted = feature_rows.with_columns(
-        (pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0)).alias("weighted_psi")
-    )
-
     return (
-        weighted.group_by(period_col)
+        feature_rows.group_by(period_col)
         .agg(
-            pl.col("weighted_psi").mean().alias("period_weighted drift"),
+            pl.col(psi_col).mean().alias("period_raw_drift_mean"),
+            pl.col(psi_col).std().alias("period_raw_drift_std"),
+            pl.col("weighted_psi").mean().alias("period_weighted_drift_mean"),
+            pl.col("weighted_psi").std().alias("period_weighted_drift_std"),
         )
         .sort(period_col)
     )
