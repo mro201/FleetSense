@@ -26,7 +26,6 @@ data/
 # Notebooks and docs -- not used by the frontend image
 notebooks/
 docs/
-*.md
 
 # Backend-only code -- irrelevant to the frontend build
 fleetsense/api/
