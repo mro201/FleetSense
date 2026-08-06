@@ -8,4 +8,4 @@ COPY app/ ./app/
 COPY fleetsense/features/schema.json ./fleetsense/features/schema.json
 
 EXPOSE 8501
-CMD uv run --frozen --no-dev --no-install-project streamlit run app/streamlit_app.py --server.port ${PORT:-8501} --server.address 0.0.0.0
+CMD uv run --no-sync streamlit run app/streamlit_app.py --server.port ${PORT:-8501} --server.address 0.0.0.0
