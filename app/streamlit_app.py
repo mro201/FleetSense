@@ -2,6 +2,9 @@ import requests
 import streamlit as st
 import json
 from pathlib import Path
+import os
+
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="FleetSense", page_icon="🧭", layout="wide")
 
@@ -160,7 +163,7 @@ with st.form("feature_input", clear_on_submit=True, enter_to_submit=True, border
 
 if submitted:
     try:
-        response = requests.post("http://localhost:8000/predict", json=values)
+        response = requests.post(f"{API_URL}/predict", json=values)
         result = response.json()
 
         st.markdown(
