@@ -1,0 +1,12 @@
+.venv/
+.git/
+data/dataset/vessel_weekly_features.csv
+data/raw/
+notebooks/
+fleetsense/outputs/
+tests/
+docs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/

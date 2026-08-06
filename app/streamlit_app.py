@@ -1,7 +1,10 @@
 import requests
 import streamlit as st
+import json
+from pathlib import Path
+import os
 
-from fleetsense.features.data_loader import load_schema
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 st.set_page_config(page_title="FleetSense", page_icon="🧭", layout="wide")
 
@@ -139,8 +142,10 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
-SCHEMA = load_schema()
+SCHEMA_PATH = Path(__file__).parent.parent / "fleetsense" / "features" / "schema.json"
+if not SCHEMA_PATH.exists():
+    raise FileNotFoundError(f"No schema found at {SCHEMA_PATH}.")
+SCHEMA = json.loads(SCHEMA_PATH.read_text())
 FEATURES = SCHEMA["columns"]
 
 
@@ -157,17 +162,20 @@ with st.form("feature_input", clear_on_submit=True, enter_to_submit=True, border
     submitted = st.form_submit_button("Predict")
 
 if submitted:
-    response = requests.post("http://localhost:8000/predict", json=values)
-    result = response.json()
+    try:
+        response = requests.post(f"{API_URL}/predict", json=values)
+        result = response.json()
 
-    st.markdown(
-        f"""
-    <div class="result-card">
-        <div class="result-label">Predicted vessel type</div>
-        <div class="result-value">{result["vessel_type"]}</div>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
+        st.markdown(
+            f"""
+        <div class="result-card">
+            <div class="result-label">Predicted vessel type</div>
+            <div class="result-value">{result["vessel_type"]}</div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
 
-    st.bar_chart(result["probabilities"])
+        st.bar_chart(result["probabilities"])
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error communicating with the prediction API: {e}")
