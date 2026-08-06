@@ -107,7 +107,6 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
 
     print(f"Loading dataset from {data_path} ...")
     df = get_dataset(data_path).to_pandas()
-    df = get_dataset(data_path).to_pandas()
 
     date_column = "timestamp"  # adjust to whatever your actual date/timestamp column is called
     df[date_column] = pd.to_datetime(df[date_column]).dt.date
