@@ -12,7 +12,6 @@ RUN uv sync --frozen --no-dev
 #copy over needed code
 COPY fleetsense/ ./fleetsense/
 COPY scripts/train_model.py ./scripts/train_model.py
-COPY config.py ./config.py
 COPY data/dataset/vessel_weekly_features_sample.csv ./data/dataset/vessel_weekly_features_sample.csv
 
 RUN uv run scripts/train_model.py
