@@ -6,7 +6,7 @@ WORKDIR /app
 
 # This installs uv and syncs dependencies before copying app code,
 # so Docker can cache this layer when only the code changes, not deps.
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock ./ README.md
 RUN uv sync --frozen --no-dev
 
 #copy over needed code
