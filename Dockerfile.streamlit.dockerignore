@@ -1,0 +1,48 @@
+# Dockerfile.streamlit.dockerignore
+# Trims the build context for the frontend image -- Dockerfile.streamlit only
+# COPYs app/, fleetsense/features/schema.json, pyproject.toml, and uv.lock, so
+# none of this would end up in the image regardless, but excluding it here
+# keeps the context Docker has to package and send to the builder small.
+
+# Version control
+.git/
+.gitignore
+
+# Python environments / caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data and model artifacts -- the frontend doesn't need any of this
+data/
+*.csv
+*.pkl
+*.joblib
+
+# Notebooks and docs -- not used by the frontend image
+notebooks/
+docs/
+*.md
+
+# Backend-only code -- irrelevant to the frontend build
+fleetsense/api/
+fleetsense/features/data_loader.py
+fleetsense/monitoring/
+scripts/
+
+# The other Dockerfiles/ignore files -- no need to ship these into either build context
+Dockerfile
+Dockerfile.dockerignore
+
+# IDE / OS cruft
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Tests -- not needed at runtime
+tests/
