@@ -1,32 +1,32 @@
-# FleetSense: Machine Learning for Maritime Behaviour and Drift Monitoring
+# FleetSense: Vessel Classification with Drift Detection and Monitoring
 
-A machine learning pipeline for classifying maritime vessel types from AIS (Automatic Identification System) data, with a focus on understanding and detecting model drift in production.
+A production-style system for classifying maritime vessel types from AIS (Automatic Identification System) data: a trained classifier served behind a versioned API, with a monitoring layer that watches both the input data and the model's own predictions for drift — including without any ground truth labels — and flags it before it becomes a silent failure.
 
-## Overview
-This project uses real-world AIS data from the Danish Maritime Authority to train a vessel type classifier, then deliberately introduces distribution shifts to study how and why ML models degrade after deployment.
+## System at a Glance
 
-The classifier predicts vessel type (Cargo, Tanker, Fishing, Passenger, or Tug) from behavioral features derived from raw AIS signals (position, speed, course, MMSI). Because raw AIS data contains thousands of rows per vessel, the pipeline aggregates signals into a single feature vector per vessel per week before training.
+- **Model**: Random Forest vessel classifier (Cargo, Tanker, Fishing, Passenger, Tug), trained on weekly per-vessel behavioral features (position, speed, course, draught) derived from raw AIS signals, with the final feature set chosen automatically via permutation importance
+- **Serving**: containerized FastAPI service (`/predict`, `/health`), with the model and its feature schema saved and version-checked together as one artifact
+- **Monitoring**: PSI-based drift detection on both input features and predicted-class mix, per class, against a fixed reference baseline
+- **Alarms**: threshold-based drift alarms flagging specific feature/period/class breaches, not just raw PSI numbers
+- **Engineering**: automated tests, CI (Ruff, mypy, pytest), and a reproducible train/test split strategy (temporal, geographical, compositional)
+- **Frontend**: Streamlit demo (`app/`)
 
-## Core Topics
+The retraining trigger and importance-weighted drift scoring described below are the current in-progress milestone — see [Architecture](#architecture).
 
-- Feature engineering from time-series AIS signals into per-vessel behavioral profiles
-- Baseline classification using a Random Forest model
-- Drift experiments across three axes:
-    - **Temporal drift** — training on summer data, testing on different months
-    - **Geographic drift** — training on a specific area, testing on another
-    - **Composition drift** — balanced training set vs. real-world class imbalance
-- Drift detection via performance monitoring and distribution-based methods (PSI, KL divergence)
-- Explainability using SHAP to identify which features drive misclassifications under drift
+## Architecture
+![alt text](<Skjermbilde 2026-07-29 132046.png>)
 
-## Motivation
-Machine learning models in production often degrade silently as real-world data
-shifts away from what they were trained on. This project explores that problem
-end-to-end: training a working classifier, inducing realistic
-drift, then learning to detect it (via performance and distribution monitoring)
-and explain it (via SHAP) before it causes silent failures. The goal is to
-build transferable skills in drift detection and explainability. The same
-techniques apply directly to production ML systems like fraud detection,
-churn prediction, or demand forecasting.
+**Built:** prediction serving, feature and prediction-level PSI monitoring, threshold-based alarms (`check_drift`), permutation-importance-based feature selection.
+
+**In progress:** weighting drift alarms by permutation importance (see [Main Findings](#main-findings) for why this matters), automated prediction logging, and an automated retrain trigger closing the loop.
+
+## Main Findings
+
+Running the drift monitoring against a full year of real AIS data (train: first three months, evaluation: remaining nine) surfaced a broad, seasonal-looking shift concentrated in a small set of features — vessel position (`lat_mean`, `lon_mean`) and reporting frequency — affecting nearly every vessel type at once through autumn and winter.
+
+Despite that, per-class F1 stayed essentially flat over the same period, and the model's predicted class mix barely moved. The reason: the features driving the drift ranked low in permutation importance, so the model was never relying on them much in the first place. This is the core argument for weighting drift alarms by feature importance rather than treating every PSI breach as equally urgent — a large shift in a feature the model ignores is a very different signal than the same shift in one it depends on.
+
+Full write-up, caveats, and next steps: [`docs/design_note_psi_vs_performance.md`](docs/design_note_psi_vs_performance.md).
 
 ## Repository Structure
 
@@ -34,108 +34,65 @@ churn prediction, or demand forecasting.
 FleetSense/
 ├── fleetsense/              # main package
 │   ├── data/                # download + per-vessel aggregation
-│   ├── features/            # feature engineering and dataset handling
-│   ├── model/               # baseline model training/evaluation
-│   ├── monitoring/          # drift experiment splits + PSI/KL detection
-│   ├── evaluation/          # SHAP explainability (in progress)
+│   ├── features/            # feature engineering, dataset handling, feature selection
+│   ├── model/                # baseline model training/evaluation, artifact + schema saving, inference
+│   ├── monitoring/          # drift experiment splits + PSI-based feature and prediction drift monitoring
+│   ├── api/                 # FastAPI serving predictions
+│   ├── config.py
 ├── notebooks/               # exploratory analysis, one per project stage
 ├── scripts/                 # CLI entry points (e.g. full dataset generation)
 ├── tests/                   # unit tests
 ├── docs/                    # design decision notes
 ├── data/                    # raw/intermediate data (not committed — see data/README.md)
+├── app/                     # streamlit frontend app
+├── Dockerfile               # containerized FastAPI serving
 ├── pyproject.toml
 ├── uv.lock
-└── config.py
 ```
 
+## Data
 
-## Dataset
-This project uses real-world AIS (Automatic Identification System) data from
-the Danish Maritime Authority to train a vessel type classifier. AIS data is
-well-suited for studying drift: vessel types have clear behavioral signatures,
-drift scenarios are realistic (seasonal traffic, regional shipping differences),
-and features like speed and stopping patterns are intuitively interpretable.
+Source: real-world AIS data from the Danish Maritime Authority. Raw AIS data contains thousands of position/voyage rows per vessel; the pipeline aggregates this into one behavioral feature vector per vessel per week before training. AIS data suits studying drift well — vessel types have clear behavioral signatures, and drift scenarios (seasonal traffic, regional shipping differences) are realistic and interpretable rather than synthetic.
 
+A small sample, `data/dataset/vessel_weekly_features_sample.csv` (~2.6MB, stratified 5% per `ship_type`, `random_state=42`), is committed so the model trains immediately after cloning, without a DMA download. **Use it for** fast local training and API demos. **Don't use it for** drift analysis — it's a thin slice of one snapshot with no meaningful temporal/geographic spread, so PSI computed against it won't reflect real drift. The full dataset stays `.gitignore`'d; regenerate via `scripts/generate_dataset.py`.
 
-## Installation
+## Getting Started
 
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) if you don't already have it:
-
-   ​```powershell
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/):
+   ```powershell
    powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-   ​```
-
-2. Clone the repository:
-
-   ​```bash
+   ```
+2. Clone and install dependencies:
+   ```bash
    git clone https://github.com/mro201/FleetSense.git
    cd FleetSense
-   ​```
-
-3. Install dependencies:
-
-   ​```bash
    uv sync
-   ​```
-## Sample Dataset
+   ```
+3. Run the project (no venv activation needed with `uv run`):
+   ```bash
+   uv run jupyter lab              # notebooks
+   uv run ruff check .             # lint
+   uv run mypy                     # type check
+   uv run pytest                   # tests
+   uv run uvicorn fleetsense.api.main:app --reload   # serve the API locally
+   ```
+   Visit `http://127.0.0.1:8000/docs` for the interactive API docs once the server's running.
 
-`data/dataset/vessel_weekly_features_sample.csv` is a small, stratified sample
-of the full processed dataset, committed to the repo so the model can be
-trained immediately after cloning — without waiting on a DMA download or
-running the full feature-generation pipeline.
+   Or run the containerized API instead:
+   ```bash
+   docker build -t fleetsense-api .
+   docker run -p 8000:8000 fleetsense-api
+   ```
 
-- **Generated by:** `scripts/sample_dataset.py`
-- **Method:** stratified sampling by `ship_type` (5% per class, `random_state=42`),
-  so every vessel type is represented proportionally even though rarer classes
-  have far fewer rows in the full dataset
-- **Size:** ~2.6MB (vs. ~53MB for the full dataset)
-- **Not included:** the full dataset (`vessel_weekly_features.csv`) stays
-  `.gitignore`'d — regenerate it via `scripts/generate_dataset.py` (DMA
-  download, takes a while) if you need it
+   Alternatively, activate the virtual environment directly:
+   ```powershell
+   .venv\Scripts\activate
+   ```
 
-**Use this for:** fast local training and demoing the API
-(`uv run scripts/train_model.py`, default path).
+## Motivation
 
-**Do not use this for:** drift analysis or evaluating model quality. It's a
-small slice of one snapshot of the data — it has no meaningful temporal or
-geographic spread, so PSI/drift metrics computed against it won't reflect
-real drift behavior. For drift experiments, use the full dataset.
+Machine learning models in production often degrade silently as real-world data shifts away from what they were trained on — and without labels, performance metrics can't catch it. This project trains a classifier on three months of real AIS data, then uses the remaining nine months of real, naturally occurring drift — with labels withheld from the model but available for validation — to build and test a distribution-monitoring and alarm system that works without relying on performance metrics.
 
-To regenerate the sample after updating the full dataset:
-```bash
-uv run scripts/sample_dataset.py
-```
+The same constraint — no reliable labels at prediction time — applies directly to production ML systems like fraud detection, churn prediction, or demand forecasting, which is the broader skill this project is meant to build.
 
-## Running the Project
-
-Run commands inside the project's environment with `uv run` — no activation needed:
-
-```bash
-uv run jupyter lab
-uv run ruff check .
-uv run mypy
-uv run pytest
-```
-
-Alternatively, activate the virtual environment directly:
-
-```powershell
-.venv\Scripts\activate
-```
-
-## Example Outputs
-
-_(placeholder — fill in once drift experiments are complete)_
-
-- Baseline model accuracy: ~87% (i.i.d. train/test split)
-- Accuracy under temporal drift: ~79%
-- Accuracy under geographic drift: ~74%
-- Accuracy under composition drift: ~68% (72% F1)
-
-## Main Findings
-
-_(coming soon — to be written up once drift and explainability analysis is complete)_
-
-## Future Work
-
-- Retraining strategies to recover performance after detected drift
+Explainability (e.g. SHAP) is a possible future extension, not yet built.
