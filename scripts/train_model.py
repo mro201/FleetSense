@@ -10,22 +10,22 @@ import argparse
 import json
 from datetime import date, datetime, timezone
 from pathlib import Path
-from sklearn.inspection import permutation_importance
 
 import pandas as pd
 import polars as pl
+from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 
-from fleetsense.features.data_loader import FEATURES, TARGET_COLUMN, get_dataset
+from fleetsense.features.data_loader import FEATURES, get_dataset
 from fleetsense.model.base_model import RANDOM_STATE, evaluate_model, train_baseline
 from fleetsense.monitoring.distribution_monitoring import build_baselines, save_baselines
 
 ROOT = Path(__file__).parent.parent
 LAST_TRAINING_PATH = ROOT / "fleetsense" / "outputs" / "last_training.json"
 PERM_IMP_PATH = ROOT / "fleetsense" / "outputs" / "feature_importance.json"
-DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features_sample.csv"
+DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features.csv"
 DEFAULT_START = date(2025, 6, 1)
-DEFAULT_END = date(2025, 9, 1)
+DEFAULT_END = date(2025, 12, 1)
 
 
 def parse_date(s: str) -> date:
@@ -106,10 +106,11 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
         )
 
     print(f"Loading dataset from {data_path} ...")
-    df = get_dataset(data_path).to_pandas()
-
+    df = get_dataset(data_path)
     date_column = "timestamp"  # adjust to whatever your actual date/timestamp column is called
-    df[date_column] = pd.to_datetime(df[date_column]).dt.date
+    df = (df.filter(pl.col(date_column).is_not_null())).to_pandas()
+
+    df[date_column] = pd.to_datetime(df[date_column], format="mixed").dt.date
     df = df[(df[date_column] >= start) & (df[date_column] <= end)]
 
     if df.empty:
@@ -118,12 +119,12 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
         )
 
     X = df[FEATURES]
-    y = df[TARGET_COLUMN]
+    y = df["ship_type"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
 
     # PSI baseline
-    baseline_data = pl.from_pandas(X_train.assign(**{TARGET_COLUMN: y_train}))
+    baseline_data = pl.from_pandas(X_train.assign(**{"ship_type": y_train}))
     psi_baseline = build_baselines(baseline_data, FEATURES, class_col=None)
     save_baselines(psi_baseline)
 
