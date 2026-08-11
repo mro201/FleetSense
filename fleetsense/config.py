@@ -10,4 +10,4 @@ SHIP_TYPES = ["Cargo", "Tanker", "Fishing", "Tug", "Passenger"]
 TIMESTAMP_FMT = "%d/%m/%Y %H:%M:%S"
 RANDOM_SEED = 42
 MIN_PINGS_PER_WEEK = 100
-CLASS_COLUMN = "Ship type"
+CLASS_COLUMN = "ship_type"
