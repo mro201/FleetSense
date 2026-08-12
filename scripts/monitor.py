@@ -38,9 +38,11 @@ def load_last_checked() -> datetime | None:
         data_train = json.load(f)
 
     checked_up_to = datetime.fromisoformat(data["checked_up_to"])
+    if checked_up_to.tzinfo is not None:
+        checked_up_to = checked_up_to.astimezone(timezone.utc).replace(tzinfo=None)
 
     data_end_date = date.fromisoformat(data_train["data_end"])  # parse as date, not datetime
-    data_end = datetime.combine(data_end_date, datetime.min.time(), tzinfo=timezone.utc)  # midnight UTC
+    data_end = datetime.combine(data_end_date, datetime.min.time())  # naive, midnight
 
     return max(checked_up_to, data_end)
 
@@ -59,6 +61,9 @@ def load_new_predictions(since: datetime | None) -> pl.DataFrame:
     if not LOG_PATH.exists():
         raise FileNotFoundError(f"No prediction log found at {LOG_PATH}")
 
+    if since is not None and since.tzinfo is not None:
+        since = since.astimezone(timezone.utc).replace(tzinfo=None)
+
     valid_lines = []
     with open(LOG_PATH, "r", encoding="utf-8") as f:
         for line in f:
@@ -72,7 +77,7 @@ def load_new_predictions(since: datetime | None) -> pl.DataFrame:
                 continue  # skip malformed entries
 
     df = pl.DataFrame([json.loads(line) for line in valid_lines])
-    df = df.with_columns(pl.col("timestamp").str.to_datetime("%Y-%m-%dT%H:%M:%S%.f%z"))
+    df = df.with_columns(pl.col("timestamp").str.to_datetime("%Y-%m-%dT%H:%M:%S"))
 
     if since is not None:
         df = df.filter(pl.col("timestamp") > since)
@@ -88,18 +93,16 @@ def main() -> bool:
         print(f"Checking predictions logged after {last_checked.isoformat()} ...")
 
     new_predictions = load_new_predictions(last_checked)
-
     if new_predictions.is_empty():
         print("No new predictions since last check. Nothing to do.")
-        return False
+        # return False
 
     print(f"Found {new_predictions.height} new predictions.")
     df = new_predictions.unnest("features")
-    df = df.with_columns(pl.lit(datetime.now(timezone.utc).date()).alias("period"))
 
     # Load the baselines and compute PSI for all features
     baselines = load_baselines()
-    psi_results = monitor_all_features(baselines, df, FEATURES, period_col="period", class_col=None)
+    psi_results = monitor_all_features(baselines, df, FEATURES, period_col="timestamp", class_col=None)
 
     # Load the permutation importance to weight the features in the drift check
     importance_df = load_permutation_importance()
@@ -109,10 +112,10 @@ def main() -> bool:
 
     per_feature_flagged = check_drift(psi_results, threshold=PSI_MODERATE, class_col=None)
     period_scores = weighted_drift_score(psi_results, period_col="period")
-    mean_flagged = period_scores.filter(pl.col("period_weighted_drift") > SCORE_THRESHOLD)
+    mean_flagged = period_scores.filter(pl.col("period_weighted_drift_mean") > SCORE_THRESHOLD)
 
     for row in mean_flagged.iter_rows(named=True):
-        print(f"Period {row['period']} flagged for high mean drift: {row['period_weighted_drift']:.4f}")
+        print(f"Period {row['period']} flagged for high mean drift: {row['period_weighted_drift_mean']:.4f}")
 
     drift_flagged = per_feature_flagged.height > 0 or mean_flagged.height > 0
 
@@ -122,8 +125,8 @@ def main() -> bool:
             reasons.append(f"{per_feature_flagged.height} individual feature breach(es)")
         if mean_flagged.height > 0:
             reasons.append(f"{mean_flagged.height} period(s) with high mean drift")
-            train(end=date.today())
-            print(f"Retraining triggered: {', '.join(reasons)}")
+        print(f"Retraining triggered: {', '.join(reasons)}")
+        train(end=date.today())
     else:
         print("No drift detected on any signal.")
     latest_timestamp = new_predictions["timestamp"].max()

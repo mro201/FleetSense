@@ -79,7 +79,7 @@ def save_permutation_importance(perm_results) -> None:
     clipped = importance_df["importance_mean"].clip(lower=0)
     min_val, max_val = clipped.min(), clipped.max()
 
-    MIN_WEIGHT, MAX_WEIGHT = 0.5, 3.0
+    MIN_WEIGHT, MAX_WEIGHT = 0.5, 2.0
     if max_val > min_val:
         importance_df["drift_weight"] = MIN_WEIGHT + (clipped - min_val) / (max_val - min_val) * (
             MAX_WEIGHT - MIN_WEIGHT
