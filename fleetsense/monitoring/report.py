@@ -145,7 +145,7 @@ def generate_drift_report(
 <div class="container">
     <h1>⚓ FleetSense Drift Report</h1>
     <div class="meta">Period: {report_date} — Generated {generated_at}</div>
-    <div class="status {'flagged' if is_flagged else 'stable'}">{status}</div>
+    <div class="status {"flagged" if is_flagged else "stable"}">{status}</div>
 
     <h2>Ranked breach list</h2>
     <table>
