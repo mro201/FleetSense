@@ -21,6 +21,7 @@ dependencies = [
     "uvicorn>=0.51.0",
     "streamlit>=1.60.0",
     "pytest>=9.1.1",
+    "joblib>=1.5.3",
 ]
 [tool.uv]
 package = true

@@ -13,17 +13,19 @@ from pathlib import Path
 
 import pandas as pd
 import polars as pl
+from sklearn.inspection import permutation_importance
 from sklearn.model_selection import train_test_split
 
-from fleetsense.features.data_loader import FEATURES, TARGET_COLUMN, get_dataset
+from fleetsense.features.data_loader import FEATURES, get_dataset
 from fleetsense.model.base_model import RANDOM_STATE, evaluate_model, train_baseline
 from fleetsense.monitoring.distribution_monitoring import build_baselines, save_baselines
 
 ROOT = Path(__file__).parent.parent
 LAST_TRAINING_PATH = ROOT / "fleetsense" / "outputs" / "last_training.json"
-DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features_sample.csv"
+PERM_IMP_PATH = ROOT / "fleetsense" / "outputs" / "feature_importance.json"
+DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features.csv"
 DEFAULT_START = date(2025, 6, 1)
-DEFAULT_END = date(2025, 9, 1)
+DEFAULT_END = date(2025, 12, 1)
 
 
 def parse_date(s: str) -> date:
@@ -65,6 +67,36 @@ def save_training_metadata(start: date, end: date) -> None:
     print(f"Training metadata saved to {LAST_TRAINING_PATH}")
 
 
+def save_permutation_importance(perm_results) -> None:
+    importance_df = pd.DataFrame(
+        {
+            "importance_mean": perm_results.importances_mean,
+            "importance_std": perm_results.importances_std,
+        },
+        index=FEATURES,
+    )
+
+    clipped = importance_df["importance_mean"].clip(lower=0)
+    min_val, max_val = clipped.min(), clipped.max()
+
+    MIN_WEIGHT, MAX_WEIGHT = 0.5, 2.0
+    if max_val > min_val:
+        importance_df["drift_weight"] = MIN_WEIGHT + (clipped - min_val) / (max_val - min_val) * (
+            MAX_WEIGHT - MIN_WEIGHT
+        )
+    else:
+        importance_df["drift_weight"] = MIN_WEIGHT  # all importances equal — uniform weight
+
+    importance_df.to_json(PERM_IMP_PATH, indent=2)
+    print(f"Permutation importance saved to {PERM_IMP_PATH}")
+
+
+def load_permutation_importance(path: Path = PERM_IMP_PATH) -> pd.DataFrame:
+    if not path.exists():
+        raise FileNotFoundError(f"No permutation importance file found at {path}. Train the model first.")
+    return pd.read_json(path)
+
+
 def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path = DEFAULT_DATA_PATH) -> None:
     if not data_path.exists():
         raise FileNotFoundError(
@@ -74,11 +106,11 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
         )
 
     print(f"Loading dataset from {data_path} ...")
-    df = get_dataset(data_path).to_pandas()
-    df = get_dataset(data_path).to_pandas()
-
+    df = get_dataset(data_path)
     date_column = "timestamp"  # adjust to whatever your actual date/timestamp column is called
-    df[date_column] = pd.to_datetime(df[date_column]).dt.date
+    df = (df.filter(pl.col(date_column).is_not_null())).to_pandas()
+
+    df[date_column] = pd.to_datetime(df[date_column], format="mixed").dt.date
     df = df[(df[date_column] >= start) & (df[date_column] <= end)]
 
     if df.empty:
@@ -87,12 +119,12 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
         )
 
     X = df[FEATURES]
-    y = df[TARGET_COLUMN]
+    y = df["ship_type"]
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
 
     # PSI baseline
-    baseline_data = pl.from_pandas(X_train.assign(**{TARGET_COLUMN: y_train}))
+    baseline_data = pl.from_pandas(X_train.assign(**{"ship_type": y_train}))
     psi_baseline = build_baselines(baseline_data, FEATURES, class_col=None)
     save_baselines(psi_baseline)
 
@@ -100,6 +132,12 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
     print("Training baseline model ...")
     model = train_baseline(X_train, y_train)
 
+    # permutation importance
+    perm_importance = permutation_importance(model, X_test, y_test, n_repeats=10, random_state=RANDOM_STATE)
+
+    save_permutation_importance(perm_importance)
+
+    # evaluate model
     print("Evaluating ...")
     metrics = evaluate_model(model, X_test, y_test)
     print(f"Accuracy: {metrics['accuracy']:.3f}")
