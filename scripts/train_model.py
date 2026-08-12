@@ -25,7 +25,7 @@ LAST_TRAINING_PATH = ROOT / "fleetsense" / "outputs" / "last_training.json"
 PERM_IMP_PATH = ROOT / "fleetsense" / "outputs" / "feature_importance.json"
 DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features.csv"
 DEFAULT_START = date(2025, 6, 1)
-DEFAULT_END = date(2025, 12, 1)
+DEFAULT_END = date(2025, 9, 1)
 
 
 def parse_date(s: str) -> date:
@@ -79,7 +79,7 @@ def save_permutation_importance(perm_results) -> None:
     clipped = importance_df["importance_mean"].clip(lower=0)
     min_val, max_val = clipped.min(), clipped.max()
 
-    MIN_WEIGHT, MAX_WEIGHT = 0.5, 2.0
+    MIN_WEIGHT, MAX_WEIGHT = 0.5, 3.0
     if max_val > min_val:
         importance_df["drift_weight"] = MIN_WEIGHT + (clipped - min_val) / (max_val - min_val) * (
             MAX_WEIGHT - MIN_WEIGHT
@@ -123,6 +123,7 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
 
+    print(f"Training data: {X_train.shape[0]} samples, Testing data: {X_test.shape[0]} samples")
     # PSI baseline
     baseline_data = pl.from_pandas(X_train.assign(**{"ship_type": y_train}))
     psi_baseline = build_baselines(baseline_data, FEATURES, class_col=None)
