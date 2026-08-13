@@ -5,10 +5,10 @@ Usage:
     uv run scripts/check_drift.py
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 import polars as pl
-from scripts.train_model import LAST_TRAINING_PATH, load_permutation_importance, train
+from scripts.train_model import load_permutation_importance, train
 
 from fleetsense.features.data_loader import FEATURES
 from fleetsense.monitoring.distribution_monitoring import (
@@ -25,7 +25,6 @@ from fleetsense.monitoring.monitoring_state import (
     save_last_checked,
 )
 from fleetsense.monitoring.report import generate_drift_report
-from scripts.train_model import load_permutation_importance
 
 SCORE_THRESHOLD = 0.1
 
