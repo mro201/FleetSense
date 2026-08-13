@@ -5,9 +5,10 @@ Usage:
     uv run scripts/check_drift.py
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 
 import polars as pl
+from scripts.train_model import load_permutation_importance, train
 
 from fleetsense.features.data_loader import FEATURES
 from fleetsense.monitoring.distribution_monitoring import (
@@ -24,7 +25,6 @@ from fleetsense.monitoring.monitoring_state import (
     save_last_checked,
 )
 from fleetsense.monitoring.report import generate_drift_report
-from scripts.train_model import load_permutation_importance
 
 SCORE_THRESHOLD = 0.1
 
@@ -37,7 +37,6 @@ def main() -> bool:
         print(f"Checking predictions logged after {last_checked.isoformat()} ...")
 
     new_predictions = load_new_predictions(last_checked)
-
     if new_predictions.is_empty():
         print("No new predictions since last check. Nothing to do.")
         return False
@@ -71,8 +70,8 @@ def main() -> bool:
             reasons.append(f"{per_feature_flagged.height} individual feature breach(es)")
         if mean_flagged.height > 0:
             reasons.append(f"{mean_flagged.height} period(s) with high mean drift")
-            # train(end=date.today())
-            print(f"Retraining triggered: {', '.join(reasons)}")
+        print(f"Retraining triggered: {', '.join(reasons)}")
+        train(end=date.today())
     else:
         print("No drift detected on any signal.")
     latest_timestamp = new_predictions["timestamp"].max()

@@ -123,6 +123,7 @@ def train(start: date = DEFAULT_START, end: date = DEFAULT_END, data_path: Path 
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_STATE, stratify=y)
 
+    print(f"Training data: {X_train.shape[0]} samples, Testing data: {X_test.shape[0]} samples")
     # PSI baseline
     baseline_data = pl.from_pandas(X_train.assign(**{"ship_type": y_train}))
     psi_baseline = build_baselines(baseline_data, FEATURES, class_col=None)
