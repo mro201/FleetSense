@@ -5,15 +5,12 @@ Usage:
     uv run scripts/check_drift.py
 """
 
-import json
-from datetime import date, datetime, timezone
-from pathlib import Path
+from datetime import datetime, timezone
 
 import polars as pl
 from scripts.train_model import LAST_TRAINING_PATH, load_permutation_importance, train
 
 from fleetsense.features.data_loader import FEATURES
-from fleetsense.model.base_model import LOG_PATH
 from fleetsense.monitoring.distribution_monitoring import (
     PSI_MODERATE,
     add_weighted_psi,
@@ -22,67 +19,15 @@ from fleetsense.monitoring.distribution_monitoring import (
     monitor_all_features,
     weighted_drift_score,
 )
+from fleetsense.monitoring.monitoring_state import (
+    load_last_checked,
+    load_new_predictions,
+    save_last_checked,
+)
+from fleetsense.monitoring.report import generate_drift_report
+from scripts.train_model import load_permutation_importance
 
-ROOT = Path(__file__).parent.parent
-
-LAST_MONITORING_PATH = ROOT / "fleetsense" / "outputs" / "last_monitoring.json"
 SCORE_THRESHOLD = 0.1
-
-
-def load_last_checked() -> datetime | None:
-    if not LAST_MONITORING_PATH.exists():
-        return None
-    with open(LAST_MONITORING_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    with open(LAST_TRAINING_PATH, "r", encoding="utf-8") as f:
-        data_train = json.load(f)
-
-    checked_up_to = datetime.fromisoformat(data["checked_up_to"])
-    if checked_up_to.tzinfo is not None:
-        checked_up_to = checked_up_to.astimezone(timezone.utc).replace(tzinfo=None)
-
-    data_end_date = date.fromisoformat(data_train["data_end"])  # parse as date, not datetime
-    data_end = datetime.combine(data_end_date, datetime.min.time())  # naive, midnight
-
-    return max(checked_up_to, data_end)
-
-
-def save_last_checked(up_to: datetime) -> None:
-    metadata = {
-        "checked_at": datetime.now(timezone.utc).isoformat(),
-        "checked_up_to": up_to.isoformat(),
-    }
-    LAST_MONITORING_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(LAST_MONITORING_PATH, "w", encoding="utf-8") as f:
-        json.dump(metadata, f, indent=2)
-
-
-def load_new_predictions(since: datetime | None) -> pl.DataFrame:
-    if not LOG_PATH.exists():
-        raise FileNotFoundError(f"No prediction log found at {LOG_PATH}")
-
-    if since is not None and since.tzinfo is not None:
-        since = since.astimezone(timezone.utc).replace(tzinfo=None)
-
-    valid_lines = []
-    with open(LOG_PATH, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                json.loads(line)
-                valid_lines.append(line)
-            except json.JSONDecodeError:
-                continue  # skip malformed entries
-
-    df = pl.DataFrame([json.loads(line) for line in valid_lines])
-    df = df.with_columns(pl.col("timestamp").str.to_datetime("%Y-%m-%dT%H:%M:%S"))
-
-    if since is not None:
-        df = df.filter(pl.col("timestamp") > since)
-
-    return df
 
 
 def main() -> bool:
@@ -99,6 +44,7 @@ def main() -> bool:
 
     print(f"Found {new_predictions.height} new predictions.")
     df = new_predictions.unnest("features")
+    df = df.with_columns(pl.lit(datetime.now(timezone.utc).date()).alias("period"))
 
     # Load the baselines and compute PSI for all features
     baselines = load_baselines()
@@ -108,7 +54,7 @@ def main() -> bool:
     importance_df = load_permutation_importance()
     weights = importance_df["drift_weight"].to_dict()
 
-    psi_results = add_weighted_psi(psi_results, weights)  # done once
+    psi_results = add_weighted_psi(psi_results, weights)
 
     per_feature_flagged = check_drift(psi_results, threshold=PSI_MODERATE, class_col=None)
     period_scores = weighted_drift_score(psi_results, period_col="period")
@@ -131,6 +77,13 @@ def main() -> bool:
         print("No drift detected on any signal.")
     latest_timestamp = new_predictions["timestamp"].max()
     save_last_checked(latest_timestamp)
+    generate_drift_report(
+        psi_results,
+        per_feature_flagged,
+        period_scores,
+        score_threshold=SCORE_THRESHOLD,
+        class_col=None,
+    )
 
     return drift_flagged
 

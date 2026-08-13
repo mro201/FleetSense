@@ -25,7 +25,7 @@ LAST_TRAINING_PATH = ROOT / "fleetsense" / "outputs" / "last_training.json"
 PERM_IMP_PATH = ROOT / "fleetsense" / "outputs" / "feature_importance.json"
 DEFAULT_DATA_PATH = ROOT / "data" / "dataset" / "vessel_weekly_features.csv"
 DEFAULT_START = date(2025, 6, 1)
-DEFAULT_END = date(2025, 9, 1)
+DEFAULT_END = date(2025, 12, 1)
 
 
 def parse_date(s: str) -> date:
