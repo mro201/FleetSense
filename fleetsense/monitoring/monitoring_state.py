@@ -19,9 +19,11 @@ def load_last_checked() -> datetime | None:
         data_train = json.load(f)
 
     checked_up_to = datetime.fromisoformat(data["checked_up_to"])
+    if checked_up_to.tzinfo is not None:
+        checked_up_to = checked_up_to.astimezone(timezone.utc).replace(tzinfo=None)
 
     data_end_date = date.fromisoformat(data_train["data_end"])  # parse as date, not datetime
-    data_end = datetime.combine(data_end_date, datetime.min.time(), tzinfo=timezone.utc)  # midnight UTC
+    data_end = datetime.combine(data_end_date, datetime.min.time())  # naive, midnight
 
     return max(checked_up_to, data_end)
 
@@ -53,7 +55,7 @@ def load_new_predictions(since: datetime | None) -> pl.DataFrame:
                 continue  # skip malformed entries
 
     df = pl.DataFrame([json.loads(line) for line in valid_lines])
-    df = df.with_columns(pl.col("timestamp").str.to_datetime("%Y-%m-%dT%H:%M:%S%.f%z"))
+    df = df.with_columns(pl.col("timestamp").str.to_datetime("%Y-%m-%dT%H:%M:%S"))
 
     if since is not None:
         df = df.filter(pl.col("timestamp") > since)
