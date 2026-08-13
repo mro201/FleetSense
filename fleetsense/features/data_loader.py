@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 
 from fleetsense.config import DATA_DATASET, SHIP_TYPES
 
-TARGET_COLUMN = "Ship type"
+TARGET_COLUMN = "ship_type"
 SCHEMA_PATH = Path(__file__).parent / "schema.json"
 RANDOM_STATE = 42
 

@@ -27,7 +27,6 @@ from typing import NamedTuple
 import numpy as np
 import polars as pl
 
-
 # PSI thresholds commonly used for interpretation
 PSI_STABLE = 0.10
 PSI_MODERATE = 0.25
@@ -316,6 +315,24 @@ def monitor_all_features(
     return combined.sort(sort_cols)
 
 
+def add_weighted_psi(
+    psi_results: pl.DataFrame,
+    weights: dict[str, float],
+    feature_col: str = "feature",
+    psi_col: str = "psi",
+) -> pl.DataFrame:
+    """Add a weighted_psi column to a PSI results table, multiplying each row's
+    PSI by its feature's importance weight (default 1.0 for features not in
+    weights). Rows for the predicted-class balance are left unweighted, since
+    that signal isn't a feature and has no importance weight."""
+    return psi_results.with_columns(
+        pl.when(pl.col(feature_col) == _PREDICTED_CLASS_KEY)
+        .then(pl.col(psi_col))
+        .otherwise(pl.col(psi_col) * pl.col(feature_col).replace(weights, default=1.0))
+        .alias("weighted_psi")
+    )
+
+
 def monitor_class_balance(
     df: pl.DataFrame,
     class_col: str,
@@ -353,28 +370,59 @@ def check_drift(
     psi_col: str = "psi",
     class_col: str | None = "ship_type",
 ) -> pl.DataFrame:
-    """Flag every row in a PSI results table (from monitor_all_features) whose PSI
-    breaches the given threshold, and print each one as a human-readable alarm.
-
-    Rows for the predicted-class balance (feature == _PREDICTED_CLASS_KEY) are
-    printed without a class label, since that signal is per-period, not per-class.
-
-    Returns the flagged rows as a table, sorted from most to least severe, so they
-    can also be inspected or plotted programmatically rather than only printed.
+    """Flag every row in a PSI results table whose PSI breaches the given
+    threshold, on either raw or weighted PSI if a weighted_psi column is
+    present. Prints each flagged row as a human-readable alarm.
     """
-    flagged = psi_results.filter(pl.col(psi_col) > threshold).sort(psi_col, descending=True)
+    has_weighted = "weighted_psi" in psi_results.columns
+
+    if has_weighted:
+        flag_condition = (pl.col(psi_col) > threshold) | (pl.col("weighted_psi") > threshold)
+        sort_col = "weighted_psi"
+    else:
+        flag_condition = pl.col(psi_col) > threshold
+        sort_col = psi_col
+
+    flagged = psi_results.filter(flag_condition).sort(sort_col, descending=True)
 
     period_as_date = _period_as_date_expr(flagged, period_col)
     flagged = flagged.with_columns(period_as_date.alias("_period_label"))
 
     for row in flagged.iter_rows(named=True):
+        weighted_note = f", weighted PSI {row['weighted_psi']:.2f}" if has_weighted else ""
         if row[feature_col] == _PREDICTED_CLASS_KEY:
-            print(f"PREDICTION DRIFT FLAGGED — week_start {row['_period_label']} (PSI {row[psi_col]:.2f})")
+            print(
+                f"PREDICTION DRIFT FLAGGED — week_start {row['_period_label']} (PSI {row[psi_col]:.2f}{weighted_note})"
+            )
             continue
         class_part = f"{row[class_col]}: " if class_col else ""
         print(
             f"DRIFT FLAGGED — week_start {row['_period_label']}, "
-            f"{class_part}{row[feature_col]} (PSI {row[psi_col]:.2f})"
+            f"{class_part}{row[feature_col]} (PSI {row[psi_col]:.2f}{weighted_note})"
         )
 
     return flagged.sort("_period_label").drop("_period_label")
+
+
+def weighted_drift_score(
+    psi_results: pl.DataFrame,
+    period_col: str = "period",
+    feature_col: str = "feature",
+    psi_col: str = "psi",
+) -> pl.DataFrame:
+    """Aggregate per-feature PSI into mean and std per period, both raw and
+    importance-weighted. Requires psi_results to already have a weighted_psi
+    column (see add_weighted_psi).
+    """
+    feature_rows = psi_results.filter(pl.col(feature_col) != _PREDICTED_CLASS_KEY)
+
+    return (
+        feature_rows.group_by(period_col)
+        .agg(
+            pl.col(psi_col).mean().alias("period_raw_drift_mean"),
+            pl.col(psi_col).std().alias("period_raw_drift_std"),
+            pl.col("weighted_psi").mean().alias("period_weighted_drift_mean"),
+            pl.col("weighted_psi").std().alias("period_weighted_drift_std"),
+        )
+        .sort(period_col)
+    )

@@ -24,9 +24,8 @@ RANDOM_STATE = 42
 MODEL_PATH = Path(__file__).parent.parent / "outputs" / "baseline_rf.pkl"
 LOG_PATH = Path(__file__).parent.parent / "outputs" / "predict_log.json"
 MODEL_PARAMS = {
-    "n_estimators": 200,
-    "max_depth": None,
-    "min_samples_leaf": 2,
+    "n_estimators": 100,
+    "max_features": "sqrt",
     "class_weight": "balanced",
     "random_state": RANDOM_STATE,
     "n_jobs": -1,

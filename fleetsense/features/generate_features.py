@@ -1,31 +1,5 @@
 """
 Generate a dataset of features for each vessel based on its AIS data.
-
-important thing to take into account:
-- very variable number of pings per vessel, some vessels have very few pings, others have many thousands
-- unbalanced distribution of ship types, with some types being much more common than others
-- missing values in some features, especially draught and navigational status
-- number of pings per vessel can vary significantly over time, with some vessels having long periods of inactivity or
-    lower reporting frequency
-
-Features generated include:
-- Identity: ship type
-- Trajectory: mean moving speed, speed variability, course variability
-- Status: number of unique navigational statuses, number of anchor pings
-- Draught: max and min draught
-- Temporal: time span of the data, number of pings
-
-features to be added:
-- draught variability (std)
-- anchor ratio (anchor_count / n_pings) - maybe remove number of anchor pings and just keep the ratio
-
-features are computed on a weekly basis for each vessel.
-
-
-Filters to be added:
-- Only include vessels with at least 100 pings in the time span.
-- Only include vessels with a time span of at least 1 week.
-- remove vessels with null or missing values in critical features (e.g., mean_moving_speed, max_draught).
 """
 
 import sys
@@ -55,6 +29,7 @@ def compute_features_for_vessel(imo: int, start: date, end: date) -> pl.DataFram
         pl.concat([pl.read_parquet(f) for f in files])
         .rename({"# Timestamp": TIMESTAMP_COL})
         .with_columns(pl.col(TIMESTAMP_COL).str.to_datetime(TIMESTAMP_FMT).alias(TIMESTAMP_COL))
+        .filter(pl.col(TIMESTAMP_COL).is_not_null())
         .filter(pl.col(TIMESTAMP_COL).dt.date().is_between(start, end))
         .sort(TIMESTAMP_COL)
         .with_columns(pl.col(TIMESTAMP_COL).dt.truncate("1w").alias("_week_start"))
