@@ -39,7 +39,7 @@ def main() -> bool:
     new_predictions = load_new_predictions(last_checked)
     if new_predictions.is_empty():
         print("No new predictions since last check. Nothing to do.")
-        # return False
+        return False
 
     print(f"Found {new_predictions.height} new predictions.")
     df = new_predictions.unnest("features")
@@ -47,7 +47,7 @@ def main() -> bool:
 
     # Load the baselines and compute PSI for all features
     baselines = load_baselines()
-    psi_results = monitor_all_features(baselines, df, FEATURES, period_col="timestamp", class_col=None)
+    psi_results = monitor_all_features(baselines, df, FEATURES, period_col="period", class_col=None)
 
     # Load the permutation importance to weight the features in the drift check
     importance_df = load_permutation_importance()
