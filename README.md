@@ -27,6 +27,8 @@ The API serves predictions and logs each one. A monitor checks logged prediction
 
 Known gap in this loop today: the monitor currently runs outside the container the API is deployed in, so it can't yet see predictions logged by the live, deployed API — see Known Limitations for why, and what fixing it needs.
 
+A more detailed walktrough of the retrain loop can be found [here](<docs/Retrain_loop.md>)
+
 
 ## Streamlit demo
 ![alt text](<docs/figures/Demo-streamlit.png>)
